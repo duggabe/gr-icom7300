@@ -170,53 +170,65 @@ blocks:
       \ bool/int, or a (name . value) pair as sent by QT GUI Toggle Button.\n         True = transmit,\
       \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
       \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\nMessage\
-      \ outputs:\n  status - symbol: RX, LEAD, TX, TAIL, CW, or \"ERROR: ...\"\n  mute   - bool for a\
-      \ Mute block's set_mute port: True except while TX audio is wanted.\n\nNeeds icom_civ.py and civ_controller.py\
-      \ next to the .grc file (or set lib_dir).\nThe serial port is opened in start(), not when GRC loads\
-      \ the block.\n\"\"\"\n\nimport sys\n\nimport pmt\nfrom gnuradio import gr\n\n\ndef _value(msg):\n\
-      \    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:     # (name . value) pair\n\
-      \        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v, str):\n        return\
-      \ v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n    return bool(v)\n\n\n\
-      class blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog,\
-      \ CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
+      \ outputs:\n  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n\
+      \           it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool\
+      \ for a Mute block's set_mute port: True except while TX audio is wanted.\n\nNeeds icom_civ.py and\
+      \ civ_controller.py next to the .grc file (or set lib_dir).\nThe serial port is opened in start(),\
+      \ not when GRC loads the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio\
+      \ import gr\n\n\ndef _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v)\
+      \ == 2:     # (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if\
+      \ isinstance(v, str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"\
+      pressed\")\n    return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control:\
+      \ PTT with lead/tail timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
       \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
       \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
       \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
       \ (0 = leave radio setting)\n    usb_mod_level: radio USB MOD Level %, set on start and when changed\
-      \ (-1 = leave)\n    lib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n    \"\
-      \"\"\n\n    def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n            \
-      \     lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, usb_mod_level=-1,\n                 lib_dir=''):\n\
-      \        gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None, out_sig=None)\n      \
-      \  self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),\n                   \
-      \      lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n                         tx_timeout=float(tx_timeout_s),\
-      \ lib_dir=lib_dir)\n        self._wpm = int(cw_wpm)\n        self._usbmod = float(usb_mod_level)\n\
-      \        self._civ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
-      \        self.set_msg_handler(pmt.intern('ptt'), self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n\
-      \        self.set_msg_handler(pmt.intern('cw'), self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n\
-      \        self.message_port_register_out(pmt.intern('mute'))\n\n    # GRC turns a property with a\
-      \ setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n    def cw_wpm(self):\n\
-      \        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n        self._wpm =\
-      \ int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\n    @property\n\
-      \    def usb_mod_level(self):\n        return self._usbmod\n\n    @usb_mod_level.setter\n    def\
-      \ usb_mod_level(self, pct):\n        self._usbmod = float(pct)\n        if self._ctl is not None\
-      \ and self._usbmod >= 0:\n            self._ctl.set_usb_mod_level(self._usbmod)\n\n    def start(self):\n\
-      \        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n      \
-      \      sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
+      \ (-1 = leave)\n    error_hold_s: how long an error stays visible in the status text\n    lib_dir:\
+      \ directory holding icom_civ.py (blank = flowgraph directory)\n    \"\"\"\n\n    def __init__(self,\
+      \ port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n                 lead_ms=50, tail_ms=50, tx_timeout_s=180,\
+      \ cw_wpm=0, usb_mod_level=-1,\n                 error_hold_s=5, lib_dir=''):\n        gr.basic_block.__init__(self,\
+      \ name='Icom CI-V PTT', in_sig=None, out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud),\
+      \ radio_addr=int(radio_addr),\n                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n\
+      \                         tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm =\
+      \ int(cw_wpm)\n        self._usbmod = float(usb_mod_level)\n        self._civ = None\n        self._ctl\
+      \ = None\n        self._error_hold = float(error_hold_s)\n        self._status_lock = threading.Lock()\n\
+      \        self._state = 'RX'\n        self._error = ''\n        self._error_timer = None\n\n    \
+      \    self.message_port_register_in(pmt.intern('ptt'))\n        self.set_msg_handler(pmt.intern('ptt'),\
+      \ self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n        self.set_msg_handler(pmt.intern('cw'),\
+      \ self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n        self.message_port_register_out(pmt.intern('mute'))\n\
+      \n    # GRC turns a property with a setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n\
+      \    def cw_wpm(self):\n        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n\
+      \        self._wpm = int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\
+      \n    @property\n    def usb_mod_level(self):\n        return self._usbmod\n\n    @usb_mod_level.setter\n\
+      \    def usb_mod_level(self, pct):\n        self._usbmod = float(pct)\n        if self._ctl is not\
+      \ None and self._usbmod >= 0:\n            self._ctl.set_usb_mod_level(self._usbmod)\n\n    def\
+      \ start(self):\n        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n\
+      \            sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
       \        self._civ = icom_civ.CivPort(cfg['port'], cfg['baud'], cfg['radio_addr'])\n        try:\n\
       \            self._civ.open()\n        except Exception as e:\n            self._civ = None\n  \
-      \          self._publish_status(f\"ERROR: cannot open {cfg['port']}: {e}\")\n            raise\n\
-      \        self._ctl = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'],\
-      \ tx_timeout=cfg['tx_timeout'],\n            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._publish_status,\n\
-      \            on_mute=self._publish_mute, on_error=lambda e: self._publish_status('ERROR: ' + e))\n\
-      \        self._ctl.start()\n        return True\n\n    def stop(self):\n        if self._ctl is\
-      \ not None:\n            self._ctl.close()           # always unkeys\n            self._ctl = None\n\
-      \        if self._civ is not None:\n            self._civ.close()\n            self._civ = None\n\
-      \        return True\n\n    def _handle_ptt(self, msg):\n        if self._ctl is not None:\n   \
-      \         self._ctl.ptt(_to_bool(_value(msg)))\n\n    def _handle_cw(self, msg):\n        if self._ctl\
-      \ is not None:\n            v = _value(msg)\n            self._ctl.cw(v if isinstance(v, str) else\
-      \ str(v))\n\n    def _publish_status(self, text):\n        self.message_port_pub(pmt.intern('status'),\
-      \ pmt.intern(text))\n\n    def _publish_mute(self, mute):\n        self.message_port_pub(pmt.intern('mute'),\
-      \ pmt.from_bool(bool(mute)))\n"
+      \          self._on_error(f\"cannot open {cfg['port']}: {e}\")\n            raise\n        self._ctl\
+      \ = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'], tx_timeout=cfg['tx_timeout'],\n\
+      \            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._on_state,\n          \
+      \  on_mute=self._publish_mute, on_error=self._on_error)\n        self._ctl.start()\n        return\
+      \ True\n\n    def stop(self):\n        if self._ctl is not None:\n            self._ctl.close()\
+      \           # always unkeys\n            self._ctl = None\n        if self._civ is not None:\n \
+      \           self._civ.close()\n            self._civ = None\n        with self._status_lock:\n \
+      \           if self._error_timer is not None:\n                self._error_timer.cancel()\n    \
+      \            self._error_timer = None\n        return True\n\n    def _handle_ptt(self, msg):\n\
+      \        if self._ctl is not None:\n            self._ctl.ptt(_to_bool(_value(msg)))\n\n    def\
+      \ _handle_cw(self, msg):\n        if self._ctl is not None:\n            v = _value(msg)\n     \
+      \       self._ctl.cw(v if isinstance(v, str) else str(v))\n\n    # status text: current state, plus\
+      \ the latest error for error_hold_s seconds\n    def _on_state(self, state):\n        with self._status_lock:\n\
+      \            self._state = state\n            self._publish_status()\n\n    def _on_error(self,\
+      \ text):\n        with self._status_lock:\n            self._error = text\n            if self._error_timer\
+      \ is not None:\n                self._error_timer.cancel()\n            self._error_timer = threading.Timer(self._error_hold,\
+      \ self._clear_error)\n            self._error_timer.daemon = True\n            self._error_timer.start()\n\
+      \            self._publish_status()\n\n    def _clear_error(self):\n        with self._status_lock:\n\
+      \            self._error = ''\n            self._error_timer = None\n            self._publish_status()\n\
+      \n    def _publish_status(self):\n        text = f\"{self._state} | ERROR: {self._error}\" if self._error\
+      \ else self._state\n        self.message_port_pub(pmt.intern('status'), pmt.intern(text))\n\n  \
+      \  def _publish_mute(self, mute):\n        self.message_port_pub(pmt.intern('mute'), pmt.from_bool(bool(mute)))\n"
     port: serial_port
     baud: '115200'
     radio_addr: radio_addr
@@ -225,6 +237,7 @@ blocks:
     tx_timeout_s: '180'
     cw_wpm: cw_wpm
     usb_mod_level: usb_mod_level
+    error_hold_s: '5'
     lib_dir: ''''''
   states:
     coordinate:
@@ -234,15 +247,16 @@ blocks:
     state: enabled
     _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
       (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
-      (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''lib_dir'', "''''")], [(''ptt'', ''message'',
-      1), (''cw'', ''message'', 1)], [(''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom
-      CI-V T/R control: PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport: serial device, e.g.
-      /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr: CI-V address (IC-7300MK2 default
-      0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms: carrier
-      hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer speed
-      set on start and when changed (0 = leave radio setting)\nusb_mod_level: radio USB MOD Level %, set
-      on start and when changed (-1 = leave)\nlib_dir: directory holding icom_civ.py (blank = flowgraph
-      directory)\n'', [''cw_wpm'', ''usb_mod_level''])'
+      (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''error_hold_s'', ''5''), (''lib_dir'', "''''")],
+      [(''ptt'', ''message'', 1), (''cw'', ''message'', 1)], [(''mute'', ''message'', 1), (''status'',
+      ''message'', 1)], ''Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport:
+      serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr: CI-V address
+      (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms:
+      carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer
+      speed set on start and when changed (0 = leave radio setting)\nusb_mod_level: radio USB MOD Level
+      %, set on start and when changed (-1 = leave)\nerror_hold_s: how long an error stays visible in
+      the status text\nlib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n'', [''cw_wpm'',
+      ''usb_mod_level''])'
 - name: tone
   id: analog_sig_source_x
   parameters:

@@ -70,7 +70,8 @@ class TestGrBlock(unittest.TestCase):
         radio = PtyRadio()
         mod = load_block_module()
         tb = gr.top_block()
-        blk = mod.blk(port=radio.path, lead_ms=20, tail_ms=20, tx_timeout_s=30, cw_wpm=40)
+        blk = mod.blk(port=radio.path, lead_ms=20, tail_ms=20, tx_timeout_s=30, cw_wpm=40,
+                      error_hold_s=0.3)
         status = blocks.message_debug()
         mute = blocks.message_debug()
         tb.msg_connect(blk, "status", status, "store")
@@ -105,6 +106,17 @@ class TestGrBlock(unittest.TestCase):
             blk.usb_mod_level = 45   # GRC callback path (slider)
             self.assertTrue(wait(lambda: radio.radio.menu.get(b"\x00\x81")
                                  == __import__("icom_civ").bcd4(__import__("icom_civ").percent_to_level(45))))
+
+            # interlock: CW while PTT is on -> error shown with the state, then cleared
+            n = status.num_messages()
+            blk._post(pmt.intern("ptt"), pmt.cons(pmt.intern("value"), pmt.from_bool(True)))
+            self.assertTrue(wait(lambda: statuses()[n:].count("TX") >= 1), statuses())
+            blk._post(pmt.intern("cw"), pmt.intern("test"))
+            self.assertTrue(wait(lambda: any(t.startswith("TX | ERROR: CW ignored") for t in statuses()[n:])),
+                            statuses())
+            self.assertTrue(wait(lambda: statuses()[-1] == "TX"), statuses())   # cleared after hold
+            blk._post(pmt.intern("ptt"), pmt.cons(pmt.intern("value"), pmt.from_bool(False)))
+            self.assertTrue(wait(lambda: statuses()[-1] == "RX"), statuses())
 
             mutes = [pmt.to_python(mute.get_message(i)) for i in range(mute.num_messages())]
             self.assertEqual(mutes[:3], [True, False, True])

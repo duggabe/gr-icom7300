@@ -64,7 +64,7 @@ def main():
         block("icom_ptt", "epy_block", (360, 260),
               _source_code=src, port="serial_port", baud=115200, radio_addr="radio_addr",
               lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm="cw_wpm",
-              usb_mod_level="usb_mod_level", lib_dir="''"),
+              usb_mod_level="usb_mod_level", error_hold_s=5, lib_dir="''"),
         block("tone", "analog_sig_source_x", (360, 460), type="float", samp_rate="samp_rate",
               waveform="analog.GR_COS_WAVE", freq="tone_freq", amp=0.3, offset=0, phase=0),
         block("tx_mute", "blocks_mute_xx", (620, 480), type="float", mute="True"),
