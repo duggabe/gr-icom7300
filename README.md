@@ -4,7 +4,8 @@ T/R (PTT) switching and CW keying for an Icom IC-7300 / IC-7300MK2 over CI-V on 
 from Python and GNU Radio 3.10. It writes CI-V directly with pyserial and uses Hamlib
 only as a reference.
 
-Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not designed for voice.
+Intended for digital data, RTTY (AFSK over USB audio, built-in modulator) and Morse code.
+Not designed for voice.
 
 ## Files
 
@@ -13,8 +14,10 @@ Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not design
 | `icom_civ.py` | CI-V protocol: frames, serial reader thread, PTT, CW keyer, mode, break-in. Also a CLI test tool. No GNU Radio dependency. |
 | `civ_controller.py` | T/R sequencing: lead/tail timing, TX watchdog, CW state, audio mute. No GNU Radio dependency. |
 | `icom_ptt_epy.py` | Source of the GNU Radio Embedded Python Block (message ports only). |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW text box, WPM and USB MOD Level sliders, status, test tone → Mute → radio USB audio. |
-| `tools/make_grc.py` | Regenerates `icom_tx_demo.grc` after editing `icom_ptt_epy.py`. |
+| `rtty.py` | RTTY modulator: Baudot encoder, phase-continuous AFSK, PTT coordination. No GNU Radio dependency. |
+| `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW and RTTY text boxes, WPM and USB MOD Level sliders, status, test tone + RTTY → Mute → radio USB audio. |
+| `tools/make_grc.py` | Regenerates `icom_tx_demo.grc` after editing either block file (overwrites the .grc). |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
 ## Radio setup (MENU › SET › Connectors)
@@ -72,7 +75,22 @@ The watchdog unkeys after `tx_timeout_s`. `stop()` always unkeys.
 `cw_wpm` and `usb_mod_level` can be driven by GRC variables (e.g. QT GUI Range). Each is
 sent to the radio on start and whenever it changes; `0` / `-1` leaves the radio's
 setting alone. The demo's USB MOD Level slider starts at 50%, so starting the flowgraph
-sets the radio to 50%. Adjust it while the test tone transmits until ALC barely moves.
+sets the radio to 50%. Tick **Test tone**, press PTT and adjust it until ALC barely moves.
+
+## RTTY
+
+Block **RTTY AFSK Mod**: 45.45 baud, 170 Hz shift, 1.5 stop bits, Baudot (characters common
+to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are skipped).
+
+- Put the radio in **LSB-D** (`icom_civ.py ... mode LSB --data`): audio mark 2125 / space
+  2295 Hz then gives mark on the higher RF frequency, the normal sense. For USB-D, swap them.
+- Type in the RTTY text box and press Enter. The modulator requests PTT, waits for the PTT
+  block to report TX, sends mark idle + LTRS, the text on its own line, a mark tail, then
+  releases PTT after `release_delay_s` (covers about 0.4 s of audio buffering).
+- Text entered while sending is appended to the same transmission.
+- If you hold PTT yourself, the modulator sends without keying or releasing.
+- The RTTY amplitude (0.3) matches the test tone, so the USB MOD Level set with the tone
+  carries over.
 
 ## Tests
 
@@ -89,3 +107,6 @@ break-in, speed) sends cleanly, and text over 30 characters sent as back-to-back
 has no gap. USB MOD Level is SET-menu item `1A 05 0081` on the MK2 (level 0–255,
 radio shows floor(level×100/255) %); read and write verified. The demo flowgraph's TX
 audio reaches the radio and the USB MOD Level slider changes ALC while transmitting.
+Sidetone: SET > CW-KEY Set, items `0218` (level) and `0219` (limit to AF gain).
+
+Not yet verified on the radio: RTTY on air (tested only by decoding the generated audio).

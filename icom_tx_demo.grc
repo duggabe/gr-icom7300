@@ -78,21 +78,39 @@ blocks:
     - 120
     rotation: 0
     state: enabled
-- name: cw_wpm
+- name: status_box
+  id: qtgui_edit_box_msg
+  parameters:
+    type: string
+    value: '''RX'''
+    label: '''Status'''
+    is_pair: 'False'
+    is_static: 'False'
+    key: ''''''
+    gui_hint: 0,1,1,1
+  states:
+    coordinate:
+    - 900
+    - 300
+    rotation: 0
+    state: enabled
+- name: usb_mod_level
   id: variable_qtgui_range
   parameters:
-    label: CW WPM
+    label: USB MOD Level %
     rangeType: int
-    value: '20'
-    start: '6'
-    stop: '48'
+    value: '50'
+    start: '0'
+    stop: '100'
     step: '1'
     widget: counter_slider
     gui_hint: 1,0,1,1
+    comment: Sent to the radio on start and when moved. Adjust while the test tone transmits until ALC
+      barely moves.
   states:
     coordinate:
     - 16
-    - 240
+    - 600
     rotation: 0
     state: enabled
 - name: tone_freq
@@ -112,23 +130,36 @@ blocks:
     - 360
     rotation: 0
     state: enabled
-- name: usb_mod_level
-  id: variable_qtgui_range
+- name: tone_on
+  id: variable_qtgui_check_box
   parameters:
-    label: USB MOD Level %
-    rangeType: int
-    value: '50'
-    start: '0'
-    stop: '100'
-    step: '1'
-    widget: counter_slider
-    gui_hint: 3,0,1,2
-    comment: Sent to the radio on start and when moved. Adjust while the test tone transmits until ALC
-      barely moves.
+    label: Test tone
+    type: bool
+    value: 'False'
+    'true': 'True'
+    'false': 'False'
+    gui_hint: 2,0,1,1
   states:
     coordinate:
     - 16
-    - 600
+    - 720
+    rotation: 0
+    state: enabled
+- name: cw_wpm
+  id: variable_qtgui_range
+  parameters:
+    label: CW WPM
+    rangeType: int
+    value: '20'
+    start: '6'
+    stop: '48'
+    step: '1'
+    widget: counter_slider
+    gui_hint: 2,1,1,1
+  states:
+    coordinate:
+    - 16
+    - 240
     rotation: 0
     state: enabled
 - name: cw_text
@@ -140,27 +171,27 @@ blocks:
     is_pair: 'False'
     is_static: 'False'
     key: ''''''
-    gui_hint: 2,0,1,2
+    gui_hint: 3,0,1,2
   states:
     coordinate:
     - 16
     - 480
     rotation: 0
     state: enabled
-- name: status_box
+- name: rtty_text
   id: qtgui_edit_box_msg
   parameters:
     type: string
-    value: '''RX'''
-    label: '''Status'''
+    value: ''''''
+    label: '''RTTY text (Enter to send; radio in LSB-D)'''
     is_pair: 'False'
     is_static: 'False'
     key: ''''''
-    gui_hint: 0,1,1,1
+    gui_hint: 4,0,1,2
   states:
     coordinate:
-    - 720
-    - 300
+    - 16
+    - 840
     rotation: 0
     state: enabled
 - name: icom_ptt
@@ -241,7 +272,7 @@ blocks:
     lib_dir: ''''''
   states:
     coordinate:
-    - 360
+    - 420
     - 260
     rotation: 0
     state: enabled
@@ -257,6 +288,73 @@ blocks:
       %, set on start and when changed (-1 = leave)\nerror_hold_s: how long an error stays visible in
       the status text\nlib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n'', [''cw_wpm'',
       ''usb_mod_level''])'
+- name: rtty_mod
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nRTTY AFSK modulator (Embedded Python Block)\n\nStream output: float audio at\
+      \ samp_rate (silence when idle).\nMessage inputs:\n  text   - text to send (string, or pair from\
+      \ QT GUI Message Edit Box). Each message is\n           sent on its own line. Text typed while sending\
+      \ is appended to the same burst.\n  status - connect to the Icom CI-V PTT block's status output.\n\
+      Message outputs:\n  ptt    - connect to the Icom CI-V PTT block's ptt input. The modulator keys\
+      \ the radio,\n           waits for TX, sends, then releases PTT, but only if it did the keying.\n\
+      \  info   - notices (unsupported characters skipped, radio did not key, ...).\n\nRadio: LSB-D with\
+      \ mark 2125 / space 2295 Hz (normal on-air sense). For USB-D, swap them.\nNeeds rtty.py next to\
+      \ the .grc file (or set lib_dir).\n\"\"\"\n\nimport sys\nimport threading\n\nimport numpy as np\n\
+      import pmt\nfrom gnuradio import gr\n\n\ndef _text(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v,\
+      \ tuple) and len(v) == 2:\n        v = v[1]\n    return v if isinstance(v, str) else str(v)\n\n\n\
+      class blk(gr.sync_block):\n    \"\"\"RTTY AFSK modulator: Baudot, 45.45 baud, 170 Hz shift, automatic\
+      \ PTT.\n\n    preamble_s: mark idle after the radio reports TX, before the text\n    postamble_s:\
+      \ mark tail after the text\n    release_delay_s: wait after the last sample before releasing PTT;\
+      \ must cover the\n        audio buffering between this block and the radio (about 0.4 s in the demo)\n\
+      \    \"\"\"\n\n    def __init__(self, samp_rate=48000, baud=45.45, mark_hz=2125.0, space_hz=2295.0,\n\
+      \                 amplitude=0.3, preamble_s=0.3, postamble_s=0.2, release_delay_s=0.5,\n       \
+      \          lib_dir=''):\n        gr.sync_block.__init__(self, name='RTTY AFSK Mod', in_sig=None,\
+      \ out_sig=[np.float32])\n        self._cfg = dict(samp_rate=float(samp_rate), baud=float(baud),\
+      \ mark=float(mark_hz),\n                         space=float(space_hz), amp=float(amplitude), pre=float(preamble_s),\n\
+      \                         post=float(postamble_s), release=float(release_delay_s),\n           \
+      \              lib_dir=lib_dir)\n        self._tx = None\n        self._lock = threading.Lock()\n\
+      \        self.message_port_register_in(pmt.intern('text'))\n        self.set_msg_handler(pmt.intern('text'),\
+      \ self._handle_text)\n        self.message_port_register_in(pmt.intern('status'))\n        self.set_msg_handler(pmt.intern('status'),\
+      \ self._handle_status)\n        self.message_port_register_out(pmt.intern('ptt'))\n        self.message_port_register_out(pmt.intern('info'))\n\
+      \n    def start(self):\n        c = self._cfg\n        if c['lib_dir'] and c['lib_dir'] not in sys.path:\n\
+      \            sys.path.insert(0, c['lib_dir'])\n        import rtty\n        gen = rtty.AfskGenerator(c['samp_rate'],\
+      \ c['baud'], c['mark'], c['space'], c['amp'])\n        self._tx = rtty.RttyTransmitter(gen, self._request_ptt,\
+      \ self._info, preamble_s=c['pre'],\n                                        postamble_s=c['post'],\
+      \ release_delay_s=c['release'])\n        return True\n\n    def stop(self):\n        with self._lock:\n\
+      \            if self._tx is not None:\n                self._tx.abort()        # releases PTT if\
+      \ this block keyed it\n        return True\n\n    def _request_ptt(self, on):\n        self.message_port_pub(pmt.intern('ptt'),\
+      \ pmt.cons(pmt.intern('rtty'), pmt.from_bool(bool(on))))\n\n    def _info(self, text):\n       \
+      \ print(text, file=sys.stderr)\n        self.message_port_pub(pmt.intern('info'), pmt.intern(text))\n\
+      \n    def _handle_text(self, msg):\n        with self._lock:\n            if self._tx is not None:\n\
+      \                self._tx.send(_text(msg))\n\n    def _handle_status(self, msg):\n        with self._lock:\n\
+      \            if self._tx is not None:\n                self._tx.set_radio_state(_text(msg))\n\n\
+      \    def work(self, input_items, output_items):\n        out = output_items[0]\n        with self._lock:\n\
+      \            if self._tx is None:\n                out[:] = 0\n            else:\n             \
+      \   out[:] = self._tx.produce(len(out))\n        return len(out)\n"
+    samp_rate: samp_rate
+    baud: '45.45'
+    mark_hz: '2125.0'
+    space_hz: '2295.0'
+    amplitude: '0.3'
+    preamble_s: '0.3'
+    postamble_s: '0.2'
+    release_delay_s: '0.5'
+    lib_dir: ''''''
+    maxoutbuf: '1024'
+  states:
+    coordinate:
+    - 420
+    - 700
+    rotation: 0
+    state: enabled
+    _io_cache: '(''RTTY AFSK Mod'', ''blk'', [(''samp_rate'', ''48000''), (''baud'', ''45.45''), (''mark_hz'',
+      ''2125.0''), (''space_hz'', ''2295.0''), (''amplitude'', ''0.3''), (''preamble_s'', ''0.3''), (''postamble_s'',
+      ''0.2''), (''release_delay_s'', ''0.5''), (''lib_dir'', "''''")], [(''status'', ''message'', 1),
+      (''text'', ''message'', 1)], [(''0'', ''float'', 1), (''info'', ''message'', 1), (''ptt'', ''message'',
+      1)], ''RTTY AFSK modulator: Baudot, 45.45 baud, 170 Hz shift, automatic PTT.\n\npreamble_s: mark
+      idle after the radio reports TX, before the text\npostamble_s: mark tail after the text\nrelease_delay_s:
+      wait after the last sample before releasing PTT; must cover the\n    audio buffering between this
+      block and the radio (about 0.4 s in the demo)\n'', [])'
 - name: tone
   id: analog_sig_source_x
   parameters:
@@ -264,13 +362,27 @@ blocks:
     samp_rate: samp_rate
     waveform: analog.GR_COS_WAVE
     freq: tone_freq
-    amp: '0.3'
+    amp: 0.3 if tone_on else 0
     offset: '0'
     phase: '0'
+    maxoutbuf: '1024'
   states:
     coordinate:
-    - 360
-    - 460
+    - 420
+    - 520
+    rotation: 0
+    state: enabled
+- name: audio_sum
+  id: blocks_add_xx
+  parameters:
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+    maxoutbuf: '1024'
+  states:
+    coordinate:
+    - 700
+    - 600
     rotation: 0
     state: enabled
 - name: tx_mute
@@ -278,10 +390,11 @@ blocks:
   parameters:
     type: float
     mute: 'True'
+    maxoutbuf: '1024'
   states:
     coordinate:
-    - 620
-    - 480
+    - 860
+    - 600
     rotation: 0
     state: enabled
 - name: audio_out
@@ -293,8 +406,8 @@ blocks:
     num_inputs: '1'
   states:
     coordinate:
-    - 820
-    - 480
+    - 1040
+    - 600
     rotation: 0
     state: enabled
 connections:
@@ -314,7 +427,27 @@ connections:
   - mute
   - tx_mute
   - set_mute
+- - rtty_text
+  - msg
+  - rtty_mod
+  - text
+- - icom_ptt
+  - status
+  - rtty_mod
+  - status
+- - rtty_mod
+  - ptt
+  - icom_ptt
+  - ptt
 - - tone
+  - '0'
+  - audio_sum
+  - '0'
+- - rtty_mod
+  - '0'
+  - audio_sum
+  - '1'
+- - audio_sum
   - '0'
   - tx_mute
   - '0'

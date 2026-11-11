@@ -132,3 +132,45 @@ class TestGrBlock(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(gr is None, "GNU Radio not available")
+class TestRttyFlowgraph(unittest.TestCase):
+    def test_rtty_keys_sends_releases(self):
+        import numpy as np
+        import rtty
+        from test_rtty import demodulate
+
+        radio = PtyRadio()
+        ptt_mod = load_block_module()
+        spec = importlib.util.spec_from_file_location("rtty_mod_epy", os.path.join(ROOT, "rtty_mod_epy.py"))
+        rtty_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rtty_mod)
+
+        tb = gr.top_block()
+        ptt = ptt_mod.blk(port=radio.path, lead_ms=20, tail_ms=20, tx_timeout_s=30)
+        mod = rtty_mod.blk(samp_rate=48000, release_delay_s=0.2)
+        thr = blocks.throttle(gr.sizeof_float, 48000)
+        sink = blocks.vector_sink_f()
+        tb.connect(mod, thr, sink)
+        tb.msg_connect(ptt, "status", mod, "status")
+        tb.msg_connect(mod, "ptt", ptt, "ptt")
+        tb.start()
+        keyed = []
+        try:
+            time.sleep(0.3)
+            mod._post(pmt.intern("text"), pmt.intern("RYRY DE TEST"))
+            end = time.time() + 8
+            while time.time() < end:
+                keyed.append(radio.radio.tx)
+                if len(keyed) > 20 and any(keyed) and not radio.radio.tx:
+                    break
+                time.sleep(0.05)
+        finally:
+            tb.stop()
+            tb.wait()
+            radio.close()
+        self.assertTrue(any(keyed), "radio never keyed")
+        self.assertFalse(radio.radio.tx, "radio left keyed")
+        audio = np.array(sink.data(), dtype=np.float32)
+        self.assertEqual(rtty.decode(demodulate(audio)).strip(), "RYRY DE TEST")
