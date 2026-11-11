@@ -103,16 +103,18 @@ class TestConsoleRouter(unittest.TestCase):
         self.assertEqual(self.stored(self.cw), ["TEST", ""])
         time.sleep(0.6)
         lines = self.screen_lines()
-        for want in ("Mode RTTY. Type /help for commands.", "Mode CW", "Stop", "Mode RTTY", "Unknown command /bogus. Type /help."):
+        for want in ("* Mode RTTY. Type /help for commands.", "* Mode CW", "* Stop", "* Mode RTTY", "* Unknown command /bogus. Type /help."):
             self.assertIn(want, lines)
 
     def test_status_display(self):
         for s in ("LEAD", "TX", "TAIL", "RX", "RX | ERROR: no reply", "RX", "CW", "RX"):
             self.post("status", s)
         self.post("info", "RTTY: skipped unsupported characters '<!>'")
-        lines = [l for l in self.screen_lines() if not l.startswith("Mode ")]   # greeting
-        self.assertEqual(lines, ["TX", "RX", "ERROR: no reply", "TX (CW keyer)", "RX",
-                                      "RTTY: skipped unsupported characters '&lt;!>'"])
+        self.post("rx", "CQ CQ DE N0CALL")
+        lines = [l for l in self.screen_lines() if not l.startswith("* Mode ")]   # greeting
+        self.assertEqual(lines, ["* TX", "* RX", "* ERROR: no reply", "* TX (CW keyer)", "* RX",
+                                 "* RTTY: skipped unsupported characters '&lt;!>'",
+                                 "CQ CQ DE N0CALL"])
 
 
 if __name__ == "__main__":

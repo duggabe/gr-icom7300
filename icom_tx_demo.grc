@@ -162,6 +162,140 @@ blocks:
     - 240
     rotation: 0
     state: enabled
+- name: rx_reverse
+  id: variable_qtgui_check_box
+  parameters:
+    label: RX Reverse
+    type: bool
+    value: 'False'
+    'true': 'True'
+    'false': 'False'
+    gui_hint: 3,0,1,1
+  states:
+    coordinate:
+    - 16
+    - 1000
+    rotation: 0
+    state: enabled
+- name: audio_in
+  id: audio_source
+  parameters:
+    samp_rate: samp_rate
+    device_name: audio_dev
+    ok_to_block: 'True'
+    num_outputs: '1'
+    comment: 'Radio RX audio: SET > Connectors > USB AF/IF Output (Output Select AF, AF Output Level,
+      AF SQL)'
+  states:
+    coordinate:
+    - 16
+    - 1100
+    rotation: 0
+    state: enabled
+- name: rtty_demod
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nRTTY demodulator (Embedded Python Block)\n\nStream input: float audio at samp_rate\
+      \ (the radio's USB audio, via an Audio Source).\nMessage inputs:\n  status - connect to the Icom\
+      \ CI-V PTT block's status output. Decoding pauses while\n           the radio is not in RX, and\
+      \ for holdoff_s after it returns to RX.\nMessage outputs:\n  text   - received text, one display\
+      \ line per message (connect to the Console\n           Router's rx input).\n\nRadio: LSB-D, tuned\
+      \ so the signal's mark/space fall on 2125/2295 Hz. Tick reverse for an\ninverted signal. Needs rtty.py\
+      \ next to the .grc file (or set lib_dir).\n\"\"\"\n\nimport sys\nimport threading\nimport time\n\
+      \nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\
+      \"\"RTTY receiver: 45.45 baud, 170 Hz shift, Baudot (US-TTY figures).\n\n    reverse: swap mark\
+      \ and space (can be changed while running)\n    squelch: minimum character quality 0-1 (0 = off;\
+      \ 0.6 hides most noise)\n    usos: unshift to letters on space\n    line_width: wrap received text\
+      \ at this many characters\n    holdoff_s: keep decoding paused this long after the radio returns\
+      \ to RX\n    \"\"\"\n\n    def __init__(self, samp_rate=48000, baud=45.45, mark_hz=2125.0, space_hz=2295.0,\n\
+      \                 reverse=False, squelch=0.6, usos=True, line_width=64, holdoff_s=0.5,\n       \
+      \          lib_dir=''):\n        gr.sync_block.__init__(self, name='RTTY Demod', in_sig=[np.float32],\
+      \ out_sig=None)\n        self._cfg = dict(samp_rate=float(samp_rate), baud=float(baud), mark=float(mark_hz),\n\
+      \                         space=float(space_hz), squelch=float(squelch), usos=bool(usos),\n    \
+      \                     width=int(line_width), lib_dir=lib_dir)\n        self._reverse = bool(reverse)\n\
+      \        self._holdoff = float(holdoff_s)\n        self._demod = None\n        self._lines = None\n\
+      \        self._rx = True\n        self._resume = 0.0\n        self._lock = threading.Lock()\n  \
+      \      self.message_port_register_in(pmt.intern('status'))\n        self.set_msg_handler(pmt.intern('status'),\
+      \ self._handle_status)\n        self.message_port_register_out(pmt.intern('text'))\n\n    @property\n\
+      \    def reverse(self):\n        return self._reverse\n\n    @reverse.setter\n    def reverse(self,\
+      \ value):\n        self._reverse = bool(value)\n        with self._lock:\n            if self._demod\
+      \ is not None:\n                self._demod.reverse = self._reverse\n\n    def start(self):\n  \
+      \      c = self._cfg\n        if c['lib_dir'] and c['lib_dir'] not in sys.path:\n            sys.path.insert(0,\
+      \ c['lib_dir'])\n        import rtty\n        with self._lock:\n            self._demod = rtty.RttyDemodulator(c['samp_rate'],\
+      \ c['baud'], c['mark'], c['space'],\n                                               self._reverse,\
+      \ c['squelch'], c['usos'])\n            self._lines = rtty.LineAssembler(c['width'])\n        return\
+      \ True\n\n    def _handle_status(self, msg):\n        v = pmt.to_python(msg)\n        state = str(v[1]\
+      \ if isinstance(v, tuple) else v)\n        rx = state.startswith(\"RX\")\n        with self._lock:\n\
+      \            if rx and not self._rx:\n                self._resume = time.monotonic() + self._holdoff\n\
+      \            self._rx = rx\n\n    def _publish(self, lines):\n        for line in lines:\n     \
+      \       self.message_port_pub(pmt.intern('text'), pmt.intern(line))\n\n    def work(self, input_items,\
+      \ output_items):\n        audio = input_items[0]\n        now = time.monotonic()\n        with self._lock:\n\
+      \            if self._demod is None:\n                return len(audio)\n            if not self._rx\
+      \ or now < self._resume:\n                self._demod.reset()            # own transmission: nothing\
+      \ to decode\n                lines = self._lines.poll(now + self._lines.idle)   # flush what we\
+      \ had\n            else:\n                lines = self._lines.feed(self._demod.receive(audio), now)\
+      \ + self._lines.poll(now)\n        self._publish(lines)\n        return len(audio)\n"
+    samp_rate: samp_rate
+    baud: '45.45'
+    mark_hz: '2125.0'
+    space_hz: '2295.0'
+    reverse: rx_reverse
+    squelch: '0.6'
+    usos: 'True'
+    line_width: '64'
+    holdoff_s: '0.5'
+    lib_dir: ''''''
+  states:
+    coordinate:
+    - 420
+    - 1100
+    rotation: 0
+    state: enabled
+    _io_cache: '(''RTTY Demod'', ''blk'', [(''samp_rate'', ''48000''), (''baud'', ''45.45''), (''mark_hz'',
+      ''2125.0''), (''space_hz'', ''2295.0''), (''reverse'', ''False''), (''squelch'', ''0.6''), (''usos'',
+      ''True''), (''line_width'', ''64''), (''holdoff_s'', ''0.5''), (''lib_dir'', "''''")], [(''0'',
+      ''float'', 1), (''status'', ''message'', 1)], [(''text'', ''message'', 1)], ''RTTY receiver: 45.45
+      baud, 170 Hz shift, Baudot (US-TTY figures).\n\nreverse: swap mark and space (can be changed while
+      running)\nsquelch: minimum character quality 0-1 (0 = off; 0.6 hides most noise)\nusos: unshift
+      to letters on space\nline_width: wrap received text at this many characters\nholdoff_s: keep decoding
+      paused this long after the radio returns to RX\n'', [''reverse''])'
+- name: rx_decim
+  id: rational_resampler_xxx
+  parameters:
+    type: fff
+    interp: '1'
+    decim: '8'
+    taps: '[]'
+    fbw: '0'
+  states:
+    coordinate:
+    - 420
+    - 1260
+    rotation: 0
+    state: enabled
+- name: rx_waterfall
+  id: qtgui_waterfall_sink_x
+  parameters:
+    type: float
+    name: '''RX audio: tune mark/space to 2125/2295 Hz'''
+    fftsize: '1024'
+    freqhalf: 'False'
+    fc: '0'
+    bw: samp_rate/8
+    int_min: '-110'
+    int_max: '-30'
+    update_time: '0.1'
+    grid: 'True'
+    legend: 'True'
+    axislabels: 'True'
+    showports: 'False'
+    gui_hint: 4,0,1,2
+  states:
+    coordinate:
+    - 700
+    - 1260
+    rotation: 0
+    state: enabled
 - name: console_in
   id: zeromq_sub_msg_source
   parameters:
@@ -182,11 +316,12 @@ blocks:
       \ v2.1: ZMQ PUB/SUB).\n\nConnect:\n  ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False)\
       \ -> in\n  display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)\n  cw   -> Icom CI-V\
       \ PTT block's cw input\n  rtty -> RTTY AFSK Mod's text input\n  Icom CI-V PTT status -> status,\
-      \  RTTY AFSK Mod info -> info\n\nEach line typed in the console is sent in the current mode. Commands:\n\
-      \  /cw  /rtty   switch mode\n  /stop        abort the current CW or RTTY transmission (an empty\
-      \ line does the same)\n  /help        list the commands\nThe console shows radio state changes (TX\
-      \ / RX), errors and notices.\n\"\"\"\n\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\
-      \nMODES = (\"RTTY\", \"CW\")\nHELP = [\"Type a line and press Enter to send it in the current mode.\"\
+      \  RTTY AFSK Mod info -> info\n  RTTY Demod text -> rx\n\nEach line typed in the console is sent\
+      \ in the current mode. Commands:\n  /cw  /rtty   switch mode\n  /stop        abort the current CW\
+      \ or RTTY transmission (an empty line does the same)\n  /help        list the commands\nThe console\
+      \ shows received RTTY text as it is, and radio state changes (TX / RX), errors\nand notices with\
+      \ a \"* \" in front.\n\"\"\"\n\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\nMODES\
+      \ = (\"RTTY\", \"CW\")\nHELP = [\"Type a line and press Enter to send it in the current mode.\"\
       ,\n        \"/rtty or /cw: switch mode.  /stop or empty line: abort.  /help: this list.\"]\nQUIET_STATES\
       \ = (\"LEAD\", \"TAIL\")     # brief PTT sequencing states, not worth showing\n\n\ndef _text(msg):\n\
       \    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:\n        v = v[1]\n  \
@@ -198,29 +333,31 @@ blocks:
       \   m = str(mode).upper()\n        self._mode = m if m in MODES else MODES[0]\n        self._state\
       \ = None\n        self._error = None\n        self._greet = threading.Timer(0, lambda: None)\n \
       \       for port, handler in ((\"in\", self._handle_in), (\"status\", self._handle_status),\n  \
-      \                            (\"info\", self._handle_info)):\n            self.message_port_register_in(pmt.intern(port))\n\
-      \            self.set_msg_handler(pmt.intern(port), handler)\n        for port in (\"display\",\
-      \ \"cw\", \"rtty\"):\n            self.message_port_register_out(pmt.intern(port))\n\n    def start(self):\n\
-      \        # delayed: ZMQ PUB drops messages until the console's SUB socket has connected\n      \
-      \  self._greet = threading.Timer(1.0, self._show, (f\"Mode {self._mode}. Type /help for commands.\"\
-      ,))\n        self._greet.daemon = True\n        self._greet.start()\n        return True\n\n   \
-      \ def stop(self):\n        self._greet.cancel()\n        return True\n\n    def _show(self, line):\n\
-      \        # gr-webserver shows one line per message and renders it as HTML\n        line = line.replace(\"\
-      \\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\").replace(\"<\", \"&lt;\")\n     \
-      \   self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\n    def _send(self, mode,\
-      \ text):\n        self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))\n\n    def _handle_in(self,\
+      \                            (\"info\", self._handle_info), (\"rx\", self._handle_rx)):\n      \
+      \      self.message_port_register_in(pmt.intern(port))\n            self.set_msg_handler(pmt.intern(port),\
+      \ handler)\n        for port in (\"display\", \"cw\", \"rtty\"):\n            self.message_port_register_out(pmt.intern(port))\n\
+      \n    def start(self):\n        # delayed: ZMQ PUB drops messages until the console's SUB socket\
+      \ has connected\n        self._greet = threading.Timer(1.0, self._note, (f\"Mode {self._mode}. Type\
+      \ /help for commands.\",))\n        self._greet.daemon = True\n        self._greet.start()\n   \
+      \     return True\n\n    def stop(self):\n        self._greet.cancel()\n        return True\n\n\
+      \    def _show(self, line):\n        # gr-webserver shows one line per message and renders it as\
+      \ HTML\n        line = line.replace(\"\\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\"\
+      ).replace(\"<\", \"&lt;\")\n        self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\
+      \n    def _note(self, line):\n        self._show(\"* \" + line)\n\n    def _send(self, mode, text):\n\
+      \        self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))\n\n    def _handle_in(self,\
       \ msg):\n        line = _text(msg).strip()\n        cmd = line.lower()\n        if cmd in (\"/rtty\"\
-      , \"/cw\"):\n            self._mode = cmd[1:].upper()\n            self._show(f\"Mode {self._mode}\"\
+      , \"/cw\"):\n            self._mode = cmd[1:].upper()\n            self._note(f\"Mode {self._mode}\"\
       )\n        elif cmd in (\"\", \"/stop\"):\n            for m in MODES:\n                self._send(m,\
-      \ \"\")              # empty text = abort, in both blocks\n            self._show(\"Stop\")\n  \
-      \      elif cmd == \"/help\":\n            for h in HELP:\n                self._show(h)\n     \
-      \   elif cmd.startswith(\"/\"):\n            self._show(f\"Unknown command {line}. Type /help.\"\
+      \ \"\")              # empty text = abort, in both blocks\n            self._note(\"Stop\")\n  \
+      \      elif cmd == \"/help\":\n            for h in HELP:\n                self._note(h)\n     \
+      \   elif cmd.startswith(\"/\"):\n            self._note(f\"Unknown command {line}. Type /help.\"\
       )\n        else:\n            self._send(self._mode, line)\n\n    def _handle_status(self, msg):\n\
       \        state, _, err = _text(msg).partition(\" | \")\n        if err.startswith(\"ERROR: \"):\n\
-      \            err = err[len(\"ERROR: \"):]\n        if err and err != self._error:\n            self._show(f\"\
+      \            err = err[len(\"ERROR: \"):]\n        if err and err != self._error:\n            self._note(f\"\
       ERROR: {err}\")\n        self._error = err or None\n        if state != self._state and state not\
-      \ in QUIET_STATES:\n            self._show(\"TX (CW keyer)\" if state == \"CW\" else state)\n  \
-      \          self._state = state\n\n    def _handle_info(self, msg):\n        self._show(_text(msg))\n"
+      \ in QUIET_STATES:\n            self._note(\"TX (CW keyer)\" if state == \"CW\" else state)\n  \
+      \          self._state = state\n\n    def _handle_info(self, msg):\n        self._note(_text(msg))\n\
+      \n    def _handle_rx(self, msg):\n        self._show(_text(msg))\n"
     mode: '''RTTY'''
   states:
     coordinate:
@@ -229,10 +366,10 @@ blocks:
     rotation: 0
     state: enabled
     _io_cache: '(''Console Router'', ''blk'', [(''mode'', "''RTTY''")], [(''status'', ''message'', 1),
-      (''info'', ''message'', 1), (''in'', ''message'', 1)], [(''rtty'', ''message'', 1), (''cw'', ''message'',
-      1), (''display'', ''message'', 1)], "Routes gr-webserver console lines to CW or RTTY and shows radio
-      status.\n\nmode: ''RTTY'' or ''CW'' at start; change it from the console with /rtty or /cw.\n",
-      [])'
+      (''info'', ''message'', 1), (''rx'', ''message'', 1), (''in'', ''message'', 1)], [(''rtty'', ''message'',
+      1), (''cw'', ''message'', 1), (''display'', ''message'', 1)], "Routes gr-webserver console lines
+      to CW or RTTY and shows radio status.\n\nmode: ''RTTY'' or ''CW'' at start; change it from the console
+      with /rtty or /cw.\n", [])'
 - name: console_out
   id: zeromq_pub_msg_sink
   parameters:
@@ -491,6 +628,26 @@ connections:
   - info
   - console
   - info
+- - rtty_demod
+  - text
+  - console
+  - rx
+- - icom_ptt
+  - status
+  - rtty_demod
+  - status
+- - audio_in
+  - '0'
+  - rtty_demod
+  - '0'
+- - audio_in
+  - '0'
+  - rx_decim
+  - '0'
+- - rx_decim
+  - '0'
+  - rx_waterfall
+  - '0'
 - - icom_ptt
   - status
   - status_box

@@ -14,10 +14,11 @@ Not designed for voice.
 | `icom_civ.py` | CI-V protocol: frames, serial reader thread, PTT, CW keyer, mode, break-in. Also a CLI test tool. No GNU Radio dependency. |
 | `civ_controller.py` | T/R sequencing: lead/tail timing, TX watchdog, CW state, audio mute. No GNU Radio dependency. |
 | `icom_ptt_epy.py` | Source of the GNU Radio Embedded Python Block (message ports only). |
-| `rtty.py` | RTTY modulator: Baudot encoder, phase-continuous AFSK, PTT coordination. No GNU Radio dependency. |
+| `rtty.py` | RTTY modulator (Baudot encoder, phase-continuous AFSK, PTT coordination) and demodulator (mark/space filters, UART, Baudot decode). No GNU Radio dependency. |
 | `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
+| `rtty_demod_epy.py` | Source of the RTTY Demod Embedded Python Block (float audio in, text lines out). |
 | `console_router_epy.py` | Source of the Console Router Embedded Python Block: connects the gr-webserver browser console to CW and RTTY and shows radio status there. |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio. |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio; radio USB audio → RTTY Demod → console, plus a tuning waterfall and RX Reverse checkbox. |
 | `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
@@ -93,6 +94,28 @@ to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are ski
 - The RTTY amplitude (0.3) matches the test tone, so the USB MOD Level set with the tone
   carries over.
 
+### Receive
+
+Block **RTTY Demod** decodes the radio's USB audio (an Audio Source on the same codec) and
+sends each received line to the console.
+
+- Radio: LSB-D, and SET > Connectors > USB AF/IF Output > Output Select **AF**. AF Output
+  Level sets the level into the codec; AF SQL OFF (open) passes audio regardless of squelch.
+- Tune with the waterfall (0–3 kHz) so the two tones sit on 2125 and 2295 Hz. Mistuning up
+  to about ±25 Hz still decodes. If the text is garbage with the tones in place, tick
+  **RX Reverse**.
+- Method: mix to the 2210 Hz centre, low-pass ±300 Hz, decimate to 2 kHz; mark and space
+  detectors each average one bit (matched filter); the decision (m − s)/(m + s) does not
+  depend on signal level, so no AGC is needed. The UART starts on a mark-to-space edge and
+  samples each bit at the detector peak.
+- `squelch` (default 0.6) is the minimum mean decision strength over a character: clean
+  signals give about 0.9 and noise about 0.4, so noise produces no garbage text. Set 0 to
+  print everything.
+- Figures use US-TTY (`$ ! ' " # & ;` as well as the transmit set); unshift on space is on.
+- Decoding pauses while the radio transmits, and for `holdoff_s` (0.5 s) afterwards.
+- In tests it copies text error-free at about +2 dB SNR (3 kHz bandwidth) and runs about
+  150× faster than real time.
+
 ## Text console (gr-webserver)
 
 Text in and out goes through [gr-webserver](https://github.com/duggabe/gr-webserver), a
@@ -114,8 +137,10 @@ ZMQ PUSH Message Sink blocks (same addresses and bind settings).
 | `/stop` or an empty line | abort the CW or RTTY transmission in progress |
 | `/help` | list the commands |
 
-The console shows `TX`, `TX (CW keyer)`, `RX`, errors from the PTT block, and RTTY notices
-such as skipped characters. gr-webserver keeps the last 20 lines. Its one-byte length field
+Received RTTY text appears as it is. The router's own lines start with `* `: `* TX`,
+`* TX (CW keyer)`, `* RX`, errors from the PTT block, and RTTY notices such as skipped
+characters. A received line appears when it ends, reaches 64 characters, or after 2 s
+without new characters. gr-webserver keeps the last 20 lines. Its one-byte length field
 limits a line to 255 ASCII characters.
 
 ## Tests

@@ -8,12 +8,14 @@ Connect:
   cw   -> Icom CI-V PTT block's cw input
   rtty -> RTTY AFSK Mod's text input
   Icom CI-V PTT status -> status,  RTTY AFSK Mod info -> info
+  RTTY Demod text -> rx
 
 Each line typed in the console is sent in the current mode. Commands:
   /cw  /rtty   switch mode
   /stop        abort the current CW or RTTY transmission (an empty line does the same)
   /help        list the commands
-The console shows radio state changes (TX / RX), errors and notices.
+The console shows received RTTY text as it is, and radio state changes (TX / RX), errors
+and notices with a "* " in front.
 """
 
 import threading
@@ -50,7 +52,7 @@ class blk(gr.basic_block):
         self._error = None
         self._greet = threading.Timer(0, lambda: None)
         for port, handler in (("in", self._handle_in), ("status", self._handle_status),
-                              ("info", self._handle_info)):
+                              ("info", self._handle_info), ("rx", self._handle_rx)):
             self.message_port_register_in(pmt.intern(port))
             self.set_msg_handler(pmt.intern(port), handler)
         for port in ("display", "cw", "rtty"):
@@ -58,7 +60,7 @@ class blk(gr.basic_block):
 
     def start(self):
         # delayed: ZMQ PUB drops messages until the console's SUB socket has connected
-        self._greet = threading.Timer(1.0, self._show, (f"Mode {self._mode}. Type /help for commands.",))
+        self._greet = threading.Timer(1.0, self._note, (f"Mode {self._mode}. Type /help for commands.",))
         self._greet.daemon = True
         self._greet.start()
         return True
@@ -72,6 +74,9 @@ class blk(gr.basic_block):
         line = line.replace("\r", " ").replace("\n", " ").replace("&", "&amp;").replace("<", "&lt;")
         self.message_port_pub(pmt.intern("display"), pmt.intern(line))
 
+    def _note(self, line):
+        self._show("* " + line)
+
     def _send(self, mode, text):
         self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))
 
@@ -80,16 +85,16 @@ class blk(gr.basic_block):
         cmd = line.lower()
         if cmd in ("/rtty", "/cw"):
             self._mode = cmd[1:].upper()
-            self._show(f"Mode {self._mode}")
+            self._note(f"Mode {self._mode}")
         elif cmd in ("", "/stop"):
             for m in MODES:
                 self._send(m, "")              # empty text = abort, in both blocks
-            self._show("Stop")
+            self._note("Stop")
         elif cmd == "/help":
             for h in HELP:
-                self._show(h)
+                self._note(h)
         elif cmd.startswith("/"):
-            self._show(f"Unknown command {line}. Type /help.")
+            self._note(f"Unknown command {line}. Type /help.")
         else:
             self._send(self._mode, line)
 
@@ -98,11 +103,14 @@ class blk(gr.basic_block):
         if err.startswith("ERROR: "):
             err = err[len("ERROR: "):]
         if err and err != self._error:
-            self._show(f"ERROR: {err}")
+            self._note(f"ERROR: {err}")
         self._error = err or None
         if state != self._state and state not in QUIET_STATES:
-            self._show("TX (CW keyer)" if state == "CW" else state)
+            self._note("TX (CW keyer)" if state == "CW" else state)
             self._state = state
 
     def _handle_info(self, msg):
+        self._note(_text(msg))
+
+    def _handle_rx(self, msg):
         self._show(_text(msg))

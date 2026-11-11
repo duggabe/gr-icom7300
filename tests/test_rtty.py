@@ -170,5 +170,63 @@ class TestTransmitter(unittest.TestCase):
         self.assertEqual(rtty.decode(demodulate(audio)).split(), ["ONE", "TWO"])
 
 
+TEXT = "RYRY CQ CQ DE N0CALL 599 TU/73 (QSL?) 1-2.3,4:5 THE QUICK BROWN FOX"
+
+
+def burst(text, offset=0.0, noise=0.0, seed=1, swap=False):
+    mark, space = 2125.0 + offset, 2295.0 + offset
+    if swap:
+        mark, space = space, mark
+    g = rtty.AfskGenerator(FS, mark_hz=mark, space_hz=space)
+    g.start_burst(0.5)
+    g.add_codes(rtty.BaudotEncoder().encode(text))
+    g.end_burst(0.5)
+    a = np.concatenate([np.zeros(FS // 2), g.read(g.pending()), np.zeros(FS // 2)])
+    return a + noise * np.random.default_rng(seed).standard_normal(len(a))
+
+
+class TestDemodulator(unittest.TestCase):
+    def test_clean(self):
+        self.assertEqual(rtty.RttyDemodulator().receive(burst(TEXT)), TEXT)
+
+    def test_mistuned(self):
+        for off in (-25, 25):
+            self.assertEqual(rtty.RttyDemodulator().receive(burst(TEXT, off)), TEXT)
+
+    def test_noisy(self):
+        # noise 0.5 at 48 kHz = about +1.6 dB SNR in 3 kHz
+        self.assertEqual(rtty.RttyDemodulator().receive(burst(TEXT, noise=0.5)), TEXT)
+
+    def test_small_blocks_same_as_one(self):
+        a = burst(TEXT, noise=0.2)
+        d = rtty.RttyDemodulator()
+        self.assertEqual("".join(d.receive(a[i:i + 997]) for i in range(0, len(a), 997)),
+                         rtty.RttyDemodulator().receive(a))
+
+    def test_squelch_hides_noise(self):
+        noise = 0.3 * np.random.default_rng(5).standard_normal(FS * 20)
+        self.assertEqual(rtty.RttyDemodulator().receive(noise), "")
+        self.assertGreater(len(rtty.RttyDemodulator(squelch=0).receive(noise)), 0)
+
+    def test_reverse(self):
+        inverted = burst(TEXT, swap=True)
+        self.assertNotEqual(rtty.RttyDemodulator().receive(inverted), TEXT)
+        self.assertEqual(rtty.RttyDemodulator(reverse=True).receive(inverted), TEXT)
+
+    def test_us_tty_figures_and_usos(self):
+        d = rtty.RttyDemodulator()
+        F, L = rtty.FIGS, rtty.LTRS
+        self.assertEqual(d.decode([F, 9, 13, rtty.SPACE, 3]), "$! A")      # USOS: A not -
+        d = rtty.RttyDemodulator(usos=False)
+        self.assertEqual(d.decode([F, 9, rtty.SPACE, 3, L, 3]), "$ -A")
+
+    def test_line_assembler(self):
+        la = rtty.LineAssembler(width=10, idle_s=2.0)
+        self.assertEqual(la.feed("\r\nCQ CQ\r\nTHE QUICK BROWN", 0.0), ["CQ CQ", "THE QUICK"])
+        self.assertEqual(la.poll(1.0), [])
+        self.assertEqual(la.poll(2.5), ["BROWN"])
+        self.assertEqual(la.feed("ABCDEFGHIJKLM", 3.0), ["ABCDEFGHIJ"])
+
+
 if __name__ == "__main__":
     unittest.main()
