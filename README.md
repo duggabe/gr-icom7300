@@ -72,10 +72,10 @@ python3 -m unittest discover -s tests -v
 
 Verified on an IC-7300MK2 (2026-11-10): CI-V address `B6` on port `-if00`; `-if02` does
 not answer CI-V; echo back off; audio codec is C-Media `CARD=Device`; ID and PTT status
-reads work.
+reads work; CI-V PTT keys and unkeys with confirmed TX/RX; the CW keyer (CW mode, semi
+break-in, speed) sends cleanly, and text over 30 characters sent as back-to-back chunks
+has no gap.
 
 Not yet verified:
 
-- PTT transmit, and audio through the codec.
-- Whether the radio queues consecutive 30-character CW chunks seamlessly. The code
-  follows Hamlib, which sends them back to back.
+- TX audio through the codec from the GNU Radio flowgraph.
