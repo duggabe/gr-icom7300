@@ -33,7 +33,13 @@ Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not design
 sudo usermod -aG dialout $USER     # then log out/in
 ls -l /dev/serial/by-id/           # MK2: two ports; CI-V is ...IC-7300MK2_<serial>-if00 (ttyACM)
 aplay -L | grep CARD=Device        # MK2 codec: C-Media "USB Audio Device" -> plughw:CARD=Device,DEV=0
+amixer -c 2 set Speaker 100%       # codec playback at 0 dB; set drive with USB MOD Level instead
 ```
+
+The codec's ALSA **Speaker** control (radio TX audio) defaulted to 38% (-23 dB), too low
+to reach ALC even at 100% USB MOD Level. The card number may change between boots or
+USB ports (`aplay -l`). Only one program can open the codec at a time, so close any
+earlier flowgraph run before starting another.
 
 ## Command-line tests (use a dummy load)
 
@@ -81,8 +87,5 @@ not answer CI-V; echo back off; audio codec is C-Media `CARD=Device`; ID and PTT
 reads work; CI-V PTT keys and unkeys with confirmed TX/RX; the CW keyer (CW mode, semi
 break-in, speed) sends cleanly, and text over 30 characters sent as back-to-back chunks
 has no gap. USB MOD Level is SET-menu item `1A 05 0081` on the MK2 (level 0–255,
-radio shows floor(level×100/255) %); read and write verified.
-
-Not yet verified:
-
-- TX audio through the codec from the GNU Radio flowgraph.
+radio shows floor(level×100/255) %); read and write verified. The demo flowgraph's TX
+audio reaches the radio and the USB MOD Level slider changes ALC while transmitting.
