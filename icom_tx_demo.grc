@@ -1,0 +1,286 @@
+options:
+  parameters:
+    id: icom_tx_demo
+    title: Icom IC-7300 TX demo
+    generate_options: qt_gui
+    output_language: python
+    run: 'True'
+    run_options: prompt
+    catch_exceptions: 'True'
+    window_size: (600,300)
+    placement: (0,0)
+  states:
+    coordinate:
+    - 16
+    - 12
+    rotation: 0
+    state: enabled
+blocks:
+- name: samp_rate
+  id: variable
+  parameters:
+    value: '48000'
+  states:
+    coordinate:
+    - 200
+    - 12
+    rotation: 0
+    state: enabled
+- name: serial_port
+  id: variable
+  parameters:
+    value: '''/dev/serial/by-id/CHANGE-ME'''
+    comment: ls -l /dev/serial/by-id/
+  states:
+    coordinate:
+    - 320
+    - 12
+    rotation: 0
+    state: enabled
+- name: radio_addr
+  id: variable
+  parameters:
+    value: '0x94'
+    comment: MENU > SET > Connectors > CI-V > CI-V Address
+  states:
+    coordinate:
+    - 480
+    - 12
+    rotation: 0
+    state: enabled
+- name: audio_dev
+  id: variable
+  parameters:
+    value: '''plughw:CARD=CODEC,DEV=0'''
+    comment: aplay -L | grep -i codec
+  states:
+    coordinate:
+    - 620
+    - 12
+    rotation: 0
+    state: enabled
+- name: ptt
+  id: variable_qtgui_toggle_button_msg
+  parameters:
+    label: PTT
+    type: bool
+    value: 'False'
+    pressed: 'True'
+    released: 'False'
+    initPressed: 'False'
+    outputmsgname: value
+    pressBackgroundColor: red
+    pressFontColor: white
+    gui_hint: 0,0,1,1
+  states:
+    coordinate:
+    - 16
+    - 120
+    rotation: 0
+    state: enabled
+- name: cw_wpm
+  id: variable_qtgui_range
+  parameters:
+    label: CW WPM
+    rangeType: int
+    value: '20'
+    start: '6'
+    stop: '48'
+    step: '1'
+    widget: counter_slider
+    gui_hint: 1,0,1,1
+  states:
+    coordinate:
+    - 16
+    - 240
+    rotation: 0
+    state: enabled
+- name: tone_freq
+  id: variable_qtgui_range
+  parameters:
+    label: Test tone Hz
+    rangeType: float
+    value: '1500'
+    start: '300'
+    stop: '2700'
+    step: '10'
+    widget: counter_slider
+    gui_hint: 1,1,1,1
+  states:
+    coordinate:
+    - 16
+    - 360
+    rotation: 0
+    state: enabled
+- name: cw_text
+  id: qtgui_edit_box_msg
+  parameters:
+    type: string
+    value: ''''''
+    label: '''CW text (Enter to send, empty = abort)'''
+    is_pair: 'False'
+    is_static: 'False'
+    key: ''''''
+    gui_hint: 2,0,1,2
+  states:
+    coordinate:
+    - 16
+    - 480
+    rotation: 0
+    state: enabled
+- name: status_box
+  id: qtgui_edit_box_msg
+  parameters:
+    type: string
+    value: '''RX'''
+    label: '''Status'''
+    is_pair: 'False'
+    is_static: 'False'
+    key: ''''''
+    gui_hint: 0,1,1,1
+  states:
+    coordinate:
+    - 720
+    - 300
+    rotation: 0
+    state: enabled
+- name: icom_ptt
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nIcom CI-V T/R control (Embedded Python Block)\n\nMessage inputs:\n  ptt  -\
+      \ bool/int, or a (name . value) pair as sent by QT GUI Toggle Button.\n         True = transmit,\
+      \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
+      \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\nMessage\
+      \ outputs:\n  status - symbol: RX, LEAD, TX, TAIL, CW, or \"ERROR: ...\"\n  mute   - bool for a\
+      \ Mute block's set_mute port: True except while TX audio is wanted.\n\nNeeds icom_civ.py and civ_controller.py\
+      \ next to the .grc file (or set lib_dir).\nThe serial port is opened in start(), not when GRC loads\
+      \ the block.\n\"\"\"\n\nimport sys\n\nimport pmt\nfrom gnuradio import gr\n\n\ndef _value(msg):\n\
+      \    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:     # (name . value) pair\n\
+      \        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v, str):\n        return\
+      \ v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n    return bool(v)\n\n\n\
+      class blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog,\
+      \ CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-...-if00-port0\n    radio_addr:\
+      \ CI-V address (IC-7300 default 0x94)\n    lead_ms: delay after confirmed TX before audio is un-muted\n\
+      \    tail_ms: carrier hold after PTT release\n    tx_timeout_s: watchdog, unkeys after this long\
+      \ in TX\n    cw_wpm: keyer speed set on start and when changed (0 = leave radio setting)\n    lib_dir:\
+      \ directory holding icom_civ.py (blank = flowgraph directory)\n    \"\"\"\n\n    def __init__(self,\
+      \ port='/dev/ttyUSB0', baud=115200, radio_addr=0x94,\n                 lead_ms=50, tail_ms=50, tx_timeout_s=180,\
+      \ cw_wpm=0, lib_dir=''):\n        gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None,\
+      \ out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),\n\
+      \                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n                      \
+      \   tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm = int(cw_wpm)\n        self._civ\
+      \ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
+      \        self.set_msg_handler(pmt.intern('ptt'), self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n\
+      \        self.set_msg_handler(pmt.intern('cw'), self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n\
+      \        self.message_port_register_out(pmt.intern('mute'))\n\n    # GRC turns a property with a\
+      \ setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n    def cw_wpm(self):\n\
+      \        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n        self._wpm =\
+      \ int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\n    def\
+      \ start(self):\n        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n\
+      \            sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
+      \        self._civ = icom_civ.CivPort(cfg['port'], cfg['baud'], cfg['radio_addr'])\n        try:\n\
+      \            self._civ.open()\n        except Exception as e:\n            self._civ = None\n  \
+      \          self._publish_status(f\"ERROR: cannot open {cfg['port']}: {e}\")\n            raise\n\
+      \        self._ctl = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'],\
+      \ tx_timeout=cfg['tx_timeout'],\n            cw_wpm=self._wpm, on_state=self._publish_status,\n\
+      \            on_mute=self._publish_mute, on_error=lambda e: self._publish_status('ERROR: ' + e))\n\
+      \        self._ctl.start()\n        return True\n\n    def stop(self):\n        if self._ctl is\
+      \ not None:\n            self._ctl.close()           # always unkeys\n            self._ctl = None\n\
+      \        if self._civ is not None:\n            self._civ.close()\n            self._civ = None\n\
+      \        return True\n\n    def _handle_ptt(self, msg):\n        if self._ctl is not None:\n   \
+      \         self._ctl.ptt(_to_bool(_value(msg)))\n\n    def _handle_cw(self, msg):\n        if self._ctl\
+      \ is not None:\n            v = _value(msg)\n            self._ctl.cw(v if isinstance(v, str) else\
+      \ str(v))\n\n    def _publish_status(self, text):\n        self.message_port_pub(pmt.intern('status'),\
+      \ pmt.intern(text))\n\n    def _publish_mute(self, mute):\n        self.message_port_pub(pmt.intern('mute'),\
+      \ pmt.from_bool(bool(mute)))\n"
+    port: serial_port
+    baud: '115200'
+    radio_addr: radio_addr
+    lead_ms: '50'
+    tail_ms: '50'
+    tx_timeout_s: '180'
+    cw_wpm: cw_wpm
+    lib_dir: ''''''
+  states:
+    coordinate:
+    - 360
+    - 260
+    rotation: 0
+    state: enabled
+    _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyUSB0''"), (''baud'', ''115200''),
+      (''radio_addr'', ''148''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
+      (''cw_wpm'', ''0''), (''lib_dir'', "''''")], [(''ptt'', ''message'', 1), (''cw'', ''message'', 1)],
+      [(''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom CI-V T/R control: PTT with lead/tail
+      timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-...-if00-port0\nradio_addr:
+      CI-V address (IC-7300 default 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms:
+      carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer
+      speed set on start and when changed (0 = leave radio setting)\nlib_dir: directory holding icom_civ.py
+      (blank = flowgraph directory)\n'', [''cw_wpm''])'
+- name: tone
+  id: analog_sig_source_x
+  parameters:
+    type: float
+    samp_rate: samp_rate
+    waveform: analog.GR_COS_WAVE
+    freq: tone_freq
+    amp: '0.3'
+    offset: '0'
+    phase: '0'
+  states:
+    coordinate:
+    - 360
+    - 460
+    rotation: 0
+    state: enabled
+- name: tx_mute
+  id: blocks_mute_xx
+  parameters:
+    type: float
+    mute: 'True'
+  states:
+    coordinate:
+    - 620
+    - 480
+    rotation: 0
+    state: enabled
+- name: audio_out
+  id: audio_sink
+  parameters:
+    samp_rate: samp_rate
+    device_name: audio_dev
+    ok_to_block: 'True'
+    num_inputs: '1'
+  states:
+    coordinate:
+    - 820
+    - 480
+    rotation: 0
+    state: enabled
+connections:
+- - ptt
+  - state
+  - icom_ptt
+  - ptt
+- - cw_text
+  - msg
+  - icom_ptt
+  - cw
+- - icom_ptt
+  - status
+  - status_box
+  - val
+- - icom_ptt
+  - mute
+  - tx_mute
+  - set_mute
+- - tone
+  - '0'
+  - tx_mute
+  - '0'
+- - tx_mute
+  - '0'
+  - audio_out
+  - '0'
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
