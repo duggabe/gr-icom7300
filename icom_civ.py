@@ -258,6 +258,8 @@ class CivPort:
 
     # -- lifecycle ---------------------------------------------------------
     def open(self) -> "CivPort":
+        if self._reader is not None:
+            return self                    # already open
         if self._ser is None:
             import serial  # pyserial
             # rtscts/dsrdtr off and RTS/DTR low: if the radio's USB SEND/USB Keying
@@ -270,6 +272,9 @@ class CivPort:
             ser.dsrdtr = False
             ser.rts = False
             ser.dtr = False
+            # exclusive: a second program (e.g. the CLI while a flowgraph runs) would
+            # steal replies from this one; make it fail clearly at open instead
+            ser.exclusive = True
             ser.open()
             self._ser = ser
         self._stop.clear()
@@ -469,7 +474,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_mode.add_argument("--filter", type=int, default=1, choices=(1, 2, 3))
     args = ap.parse_args(argv)
 
-    with CivPort(args.port, args.baud, args.addr, args.ctrl, debug=args.debug) as civ:
+    civ = CivPort(args.port, args.baud, args.addr, args.ctrl, debug=args.debug)
+    try:
+        civ.open()
+    except Exception as e:
+        print(f"error: cannot open {args.port}: {e}", file=sys.stderr)
+        if "lock" in str(e).lower():
+            print("  (another program, e.g. a running flowgraph, has the port open)", file=sys.stderr)
+        return 1
+    with civ:
         try:
             if args.action == "id":
                 print(f"radio CI-V address: {civ.read_id():02X}")
