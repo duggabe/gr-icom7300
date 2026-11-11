@@ -109,4 +109,5 @@ radio shows floor(level×100/255) %); read and write verified. The demo flowgrap
 audio reaches the radio and the USB MOD Level slider changes ALC while transmitting.
 Sidetone: SET > CW-KEY Set, items `0218` (level) and `0219` (limit to AF gain).
 
-Not yet verified on the radio: RTTY on air (tested only by decoding the generated audio).
+RTTY: the modulator keys the radio, sends, and unkeys automatically (verified on the radio).
+Not yet verified: decoding the transmitted RTTY with a separate receiver.
