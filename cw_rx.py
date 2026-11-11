@@ -11,8 +11,9 @@ Pipeline:
      element of a new transmission is caught). Once open it stays open for 2 s, and as
      long as the ratio stays above 0.85 x `squelch`. Changes shorter than a quarter dot
      are ignored.
-  5. Timing: the dot length comes from clustering recent marks into dots and dashes,
-     so the decoder follows the sender's speed (5-60 WPM). A gap of 2 dots ends a
+  5. Timing: the dot length is fitted to the recent marks as dots (1x) or dashes (3x),
+     with a capped error per mark so interference blips barely count; marks shorter
+     than 0.4 dot are dropped. So the decoder follows the sender's speed (5-60 WPM). A gap of 2 dots ends a
      character; a gap 1.5 times the sender's usual letter gap (at least 4.5 dots) ends
      a word, which also handles Farnsworth spacing.
   6. Morse table, with the common prosigns shown as <AR>, <SK>, <KN>, <BK>, <HH>.
@@ -228,27 +229,29 @@ class CwDecoder:
         if dur_ms > 10 * self.dot:          # carrier / tune-up: ignore
             self._code = ""
             return
-        self._marks = (self._marks + [dur_ms])[-16:]
+        if dur_ms < 0.4 * self.dot and len(self._marks) >= 6:
+            return                          # blip (interference, noise): not an element
+        self._marks = (self._marks + [dur_ms])[-24:]
         self._update_speed()
         self._code += "." if dur_ms < 2 * self.dot else "-"
         self._gap_done = 0
         if len(self._code) > 8:
             self._code = ""
 
+    _DOT_GRID = 1200.0 / np.geomspace(60, 5, 200)                  # candidate dots, ms
+
     def _update_speed(self) -> None:
-        """Split recent marks at the largest ratio between neighbours: dots below,
-        dashes above. With only one kind seen, decide which it is from the old estimate."""
-        m = sorted(self._marks)
-        if len(m) < 4:
+        """Fit the dot length d that best explains the recent marks as dots (d) or dashes
+        (3d). Each mark's error |log(mark / nearest)| is capped, so blips and other
+        stray marks barely matter; a small pull toward the current estimate breaks ties
+        (a run of dots alone fits d and d/3 equally well)."""
+        if len(self._marks) < 4:
             return
-        ratios = [m[i + 1] / m[i] for i in range(len(m) - 1)]
-        i = int(np.argmax(ratios))
-        if ratios[i] > 1.8:
-            dots, dashes = m[:i + 1], m[i + 1:]
-            new = (sum(dots) + sum(dashes) / 3) / len(m)
-        else:
-            mean = sum(m) / len(m)
-            new = mean if mean < 2 * self.dot else mean / 3
+        m = np.log(np.array(self._marks))[:, None]
+        g = np.log(self._DOT_GRID)[None, :]
+        err = np.minimum(np.abs(m - g), np.abs(m - g - np.log(3)))
+        loss = np.minimum(err, 0.5).sum(0) + 0.5 * np.abs(g[0] - np.log(self.dot))
+        new = float(self._DOT_GRID[int(np.argmin(loss))])
         w = 1.0 if abs(new / self.dot - 1) > 0.3 else 0.3          # big change: snap
         self.dot = min(max((1 - w) * self.dot + w * new, 1200 / 60), 1200 / 5)
 

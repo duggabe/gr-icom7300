@@ -41,7 +41,15 @@ sudo usermod -aG dialout $USER     # then log out/in
 ls -l /dev/serial/by-id/           # MK2: two ports; CI-V is ...IC-7300MK2_<serial>-if00 (ttyACM)
 aplay -L | grep CARD=Device        # MK2 codec: C-Media "USB Audio Device" -> plughw:CARD=Device,DEV=0
 amixer -c 2 set Speaker 100%       # codec playback at 0 dB; set drive with USB MOD Level instead
+amixer -c 2 cset name='Mic Capture Volume' 12     # codec capture at 0 dB (default +23 dB clips)
+amixer -c 2 cset name='Auto Gain Control' off     # codec capture AGC pumps between CW elements
 ```
+
+The codec's capture defaulted to +23 dB with its AGC on. With the radio's USB AF Output
+Level at 50%, that clipped 31% of the samples at S5 band noise, so the keying of an S9 CW
+signal was flattened and the decoders printed nothing. At 0 dB with AGC off, the same
+signal peaks at about 0.13 of full scale with no clipping. Adjust the level with the
+radio's AF Output Level rather than the codec gain.
 
 The codec's ALSA **Speaker** control (radio TX audio) defaulted to 38% (-23 dB), too low
 to reach ALC even at 100% USB MOD Level. The card number may change between boots or
