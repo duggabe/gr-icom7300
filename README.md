@@ -17,7 +17,7 @@ Not designed for voice.
 | `rtty.py` | RTTY modulator: Baudot encoder, phase-continuous AFSK, PTT coordination. No GNU Radio dependency. |
 | `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
 | `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW and RTTY text boxes, WPM and USB MOD Level sliders, status, test tone + RTTY → Mute → radio USB audio. |
-| `tools/make_grc.py` | Regenerates `icom_tx_demo.grc` after editing either block file (overwrites the .grc). |
+| `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
 ## Radio setup (MENU › SET › Connectors)
@@ -111,3 +111,19 @@ Sidetone: SET > CW-KEY Set, items `0218` (level) and `0219` (limit to AF gain).
 
 RTTY: the modulator keys the radio, sends, and unkeys automatically (verified on the radio).
 Not yet verified: decoding the transmitted RTTY with a separate receiver.
+
+## Changing the flowgraph
+
+Once you edit the flowgraph in GRC, the saved `.grc` is the master copy. Don't run
+`tools/make_grc.py` without options after that: it rebuilds the demo from scratch.
+
+| You changed | Do this |
+|---|---|
+| The flowgraph in GRC | Save in GRC. Nothing else. |
+| `icom_civ.py`, `civ_controller.py`, `rtty.py` | Nothing. They are imported at run time. |
+| `icom_ptt_epy.py` or `rtty_mod_epy.py` | Close the flowgraph in GRC, run `python3 tools/make_grc.py --update-code` (or `--update-code my_flowgraph.grc`), reopen in GRC. |
+
+`--update-code` finds the blocks by their code ("Icom CI-V PTT", "RTTY AFSK Mod"), so renamed
+blocks and copies in other flowgraphs work too. Parameter values set in GRC are kept; the
+previous file is saved as `FILE.grc.bak`. Commit the `.grc` before regenerating, so
+`git checkout icom_tx_demo.grc` can undo anything.

@@ -2,9 +2,20 @@
 """Generate icom_tx_demo.grc with icom_ptt_epy.py and rtty_mod_epy.py embedded as
 Embedded Python Blocks.
 
-Re-run after editing either block file:   python3 tools/make_grc.py
-(Edits made to a block inside GRC are saved only in the .grc, so either edit the
-.py file and regenerate, or copy changes back.) Regenerating overwrites the .grc.
+Two modes:
+    python3 tools/make_grc.py                 build the demo .grc from scratch
+                                              (overwrites it: any GRC edits are lost)
+    python3 tools/make_grc.py --update-code [FILE.grc]
+                                              copy the current icom_ptt_epy.py and
+                                              rtty_mod_epy.py into the Embedded Python
+                                              Blocks of an existing flowgraph (default
+                                              icom_tx_demo.grc), keeping everything else
+
+--update-code finds the blocks by what their code says they are ("Icom CI-V PTT",
+"RTTY AFSK Mod"), so renamed blocks and extra copies are updated too. Parameter values
+you set in GRC are kept; parameters new in the code get their defaults. The previous
+file is saved as FILE.grc.bak. Close the flowgraph in GRC first, or GRC may save its
+old copy over the update.
 
 Demo flowgraph:
     test tone (checkbox) --+
@@ -15,7 +26,9 @@ Demo flowgraph:
     RTTY text box ---------> [RTTY AFSK Mod] -> ptt msg -> [Icom CI-V PTT]
 """
 
+import argparse
 import os
+import shutil
 import sys
 
 import yaml
@@ -29,7 +42,72 @@ def block(name, id_, coord, **params):
             "states": {"coordinate": list(coord), "rotation": 0, "state": "enabled"}}
 
 
+BLOCK_FILES = ("icom_ptt_epy.py", "rtty_mod_epy.py")
+
+
+def update_code(path):
+    """Replace the embedded code of our epy blocks in an existing .grc. Returns 0 if ok."""
+    from gnuradio.grc.core.utils import epy_block_io
+
+    sources = {}
+    for fn in BLOCK_FILES:
+        src = open(os.path.join(ROOT, fn)).read()
+        io = epy_block_io.extract(src)
+        sources[io.name] = (fn, src, io)
+
+    with open(path) as f:
+        fg = yaml.safe_load(f)
+    updated = 0
+    for b in fg.get("blocks", []):
+        if b.get("id") != "epy_block":
+            continue
+        params = b.setdefault("parameters", {})
+        try:
+            old_name = epy_block_io.extract(params.get("_source_code", "")).name
+        except Exception:
+            continue                                 # someone else's / broken epy block
+        if old_name not in sources:
+            continue
+        fn, src, io = sources[old_name]
+        if params.get("_source_code") == src:
+            print(f"{b['name']}: already current ({fn})")
+            continue
+        params["_source_code"] = src
+        b.setdefault("states", {})["_io_cache"] = repr(tuple(io))
+        notes = []
+        for key, default in io.params:
+            if key not in params:
+                params[key] = repr(default)
+                notes.append(f"added {key}={params[key]}")
+        for key in [k for k in params if k.isidentifier() and not k.startswith("_")]:
+            if key not in dict(io.params) and key not in ("alias", "comment", "affinity",
+                                                          "minoutbuf", "maxoutbuf"):
+                del params[key]
+                notes.append(f"removed {key}")
+        print(f"{b['name']}: updated from {fn}" + (f" ({', '.join(notes)})" if notes else ""))
+        updated += 1
+
+    if updated:
+        shutil.copy2(path, path + ".bak")
+        with open(path, "w") as f:
+            yaml.safe_dump(fg, f, sort_keys=False, width=100)
+        print(f"wrote {path} (previous version in {path}.bak)")
+    else:
+        print("nothing to update")
+    return 0
+
+
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--update-code", nargs="?", const=os.path.join(ROOT, "icom_tx_demo.grc"),
+                    metavar="FILE.grc", help="update embedded block code in an existing .grc")
+    args = ap.parse_args()
+    if args.update_code:
+        sys.exit(update_code(args.update_code))
+    build()
+
+
+def build():
     from gnuradio.grc.core.utils import epy_block_io
 
     src = open(os.path.join(ROOT, "icom_ptt_epy.py")).read()
