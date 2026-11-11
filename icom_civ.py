@@ -1,6 +1,7 @@
 """Minimal Icom CI-V interface for T/R (PTT) control over USB serial.
 
 Written for the IC-7300 / IC-7300MK2, using Hamlib's rigs/icom as a reference.
+On the MK2, CI-V is the first USB serial port (by-id name ending -if00), address B6.
 Has no GNU Radio dependency, so it can be tested on its own from the command line:
 
     python3 icom_civ.py --port /dev/ttyUSB0 id
@@ -29,7 +30,7 @@ ACK = 0xFB
 NAK = 0xFA
 BROADCAST = 0x00
 
-DEFAULT_RADIO_ADDR = 0x94   # IC-7300 factory default; verify on MK2 (MENU > SET > Connectors > CI-V)
+DEFAULT_RADIO_ADDR = 0xB6   # IC-7300MK2 default (verified); original IC-7300 is 0x94
 DEFAULT_CTRL_ADDR = 0xE0    # conventional controller address
 
 CMD_PTT = 0x1C
@@ -396,9 +397,9 @@ def _hex(s: str) -> int:
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="Icom CI-V PTT test tool")
-    ap.add_argument("--port", required=True, help="e.g. /dev/serial/by-id/usb-...IC-7300...-if00-port0")
+    ap.add_argument("--port", required=True, help="e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00")
     ap.add_argument("--baud", type=int, default=115200)
-    ap.add_argument("--addr", type=_hex, default=DEFAULT_RADIO_ADDR, help="radio CI-V address, hex (default 94)")
+    ap.add_argument("--addr", type=_hex, default=DEFAULT_RADIO_ADDR, help="radio CI-V address, hex (default B6 = IC-7300MK2; IC-7300 is 94)")
     ap.add_argument("--ctrl", type=_hex, default=DEFAULT_CTRL_ADDR, help="controller address, hex (default E0)")
     ap.add_argument("--debug", action="store_true", help="print raw frames")
     sub = ap.add_subparsers(dest="action", required=True)

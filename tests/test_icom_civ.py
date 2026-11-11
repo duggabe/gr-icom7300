@@ -16,7 +16,7 @@ import icom_civ as civ  # noqa: E402
 class FakeRadio:
     """Serial-like object that acts like an IC-7300 on CI-V."""
 
-    def __init__(self, addr=0x94, echo=False, nak=False, silent=False, transceive_noise=False):
+    def __init__(self, addr=civ.DEFAULT_RADIO_ADDR, echo=False, nak=False, silent=False, transceive_noise=False):
         self.addr = addr
         self.echo = echo
         self.nak = nak
@@ -100,7 +100,7 @@ class TestPort(unittest.TestCase):
             self.assertTrue(c.get_ptt())
             c.set_ptt(False)
             self.assertFalse(c.get_ptt())
-        self.assertEqual(r.writes[1], bytes.fromhex("FEFE94E01C0001FD"))
+        self.assertEqual(r.writes[1], bytes.fromhex("FEFEB6E01C0001FD"))
 
     def test_echo_and_transceive_ignored(self):
         seen = []
@@ -111,9 +111,9 @@ class TestPort(unittest.TestCase):
         self.assertTrue(seen)  # broadcasts went to the callback, not the reply path
 
     def test_read_id_other_address(self):
-        r = FakeRadio(addr=0xB6)
+        r = FakeRadio(addr=0x94)
         with port(r) as c:
-            self.assertEqual(c.read_id(), 0xB6)
+            self.assertEqual(c.read_id(), 0x94)
 
     def test_nak(self):
         with port(FakeRadio(nak=True)) as c:
@@ -128,8 +128,8 @@ class TestPort(unittest.TestCase):
         self.assertEqual(len(r.writes), 3)
 
     def test_wrong_address_times_out(self):
-        r = FakeRadio(addr=0xB6)
-        with civ.CivPort(serial_port=r, radio_addr=0x94, timeout=0.1, retries=0) as c:
+        r = FakeRadio(addr=0x94)
+        with civ.CivPort(serial_port=r, radio_addr=0xB6, timeout=0.1, retries=0) as c:
             with self.assertRaises(civ.CivTimeout):
                 c.get_ptt()
 

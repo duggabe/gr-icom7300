@@ -36,8 +36,8 @@ def _to_bool(v):
 class blk(gr.basic_block):
     """Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog, CW keyer.
 
-    port: serial device, e.g. /dev/serial/by-id/usb-...-if00-port0
-    radio_addr: CI-V address (IC-7300 default 0x94)
+    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00
+    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)
     lead_ms: delay after confirmed TX before audio is un-muted
     tail_ms: carrier hold after PTT release
     tx_timeout_s: watchdog, unkeys after this long in TX
@@ -45,7 +45,7 @@ class blk(gr.basic_block):
     lib_dir: directory holding icom_civ.py (blank = flowgraph directory)
     """
 
-    def __init__(self, port='/dev/ttyUSB0', baud=115200, radio_addr=0x94,
+    def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,
                  lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, lib_dir=''):
         gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None, out_sig=None)
         self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),

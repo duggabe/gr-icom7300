@@ -34,12 +34,12 @@ def main():
 
     blocks = [
         block("samp_rate", "variable", (200, 12), value=48000),
-        block("serial_port", "variable", (320, 12), value="'/dev/serial/by-id/CHANGE-ME'",
-              comment="ls -l /dev/serial/by-id/"),
-        block("radio_addr", "variable", (480, 12), value="0x94",
+        block("serial_port", "variable", (320, 12), value="'/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_IC-7300MK2_<serial>-if00'",
+              comment="ls -l /dev/serial/by-id/  (MK2: CI-V is the -if00 port)"),
+        block("radio_addr", "variable", (480, 12), value="0xB6",
               comment="MENU > SET > Connectors > CI-V > CI-V Address"),
-        block("audio_dev", "variable", (620, 12), value="'plughw:CARD=CODEC,DEV=0'",
-              comment="aplay -L | grep -i codec"),
+        block("audio_dev", "variable", (620, 12), value="'plughw:CARD=Device,DEV=0'",
+              comment="aplay -L  (MK2 codec shows as C-Media USB Audio Device)"),
         block("ptt", "variable_qtgui_toggle_button_msg", (16, 120), label="PTT", type="bool",
               value="False", pressed="True", released="False", initPressed="False",
               outputmsgname="value", pressBackgroundColor="red", pressFontColor="white",

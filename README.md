@@ -19,7 +19,7 @@ Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not design
 
 ## Radio setup (MENU › SET › Connectors)
 
-- **CI-V Baud Rate:** 115200 (not Auto). **CI-V Address:** note it (code default `94`).
+- **CI-V Baud Rate:** 115200 (not Auto). **CI-V Address:** MK2 default `B6` (code default); original IC-7300 is `94`.
 - **CI-V USB Echo Back:** either setting works.
 - **USB SEND / USB Keying (CW/RTTY):** OFF, so only CI-V keys the radio.
 - **DATA MOD:** USB. Use USB-D (or LSB-D for RTTY) for audio-based modes.
@@ -31,8 +31,8 @@ Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not design
 
 ```
 sudo usermod -aG dialout $USER     # then log out/in
-ls -l /dev/serial/by-id/           # serial port path for the radio
-aplay -L | grep -i codec           # radio's USB audio device
+ls -l /dev/serial/by-id/           # MK2: two ports; CI-V is ...IC-7300MK2_<serial>-if00 (ttyACM)
+aplay -L | grep CARD=Device        # MK2 codec: C-Media "USB Audio Device" -> plughw:CARD=Device,DEV=0
 ```
 
 ## Command-line tests (use a dummy load)
@@ -68,8 +68,14 @@ The watchdog unkeys after `tx_timeout_s`. `stop()` always unkeys.
 python3 -m unittest discover -s tests -v
 ```
 
-## Not yet verified on hardware
+## Hardware status
 
-- The MK2's CI-V address, USB device name and audio card name.
+Verified on an IC-7300MK2 (2026-11-10): CI-V address `B6` on port `-if00`; `-if02` does
+not answer CI-V; echo back off; audio codec is C-Media `CARD=Device`; ID and PTT status
+reads work.
+
+Not yet verified:
+
+- PTT transmit, and audio through the codec.
 - Whether the radio queues consecutive 30-character CW chunks seamlessly. The code
   follows Hamlib, which sends them back to back.

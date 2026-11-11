@@ -29,8 +29,8 @@ blocks:
 - name: serial_port
   id: variable
   parameters:
-    value: '''/dev/serial/by-id/CHANGE-ME'''
-    comment: ls -l /dev/serial/by-id/
+    value: '''/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_IC-7300MK2_<serial>-if00'''
+    comment: 'ls -l /dev/serial/by-id/  (MK2: CI-V is the -if00 port)'
   states:
     coordinate:
     - 320
@@ -40,7 +40,7 @@ blocks:
 - name: radio_addr
   id: variable
   parameters:
-    value: '0x94'
+    value: '0xB6'
     comment: MENU > SET > Connectors > CI-V > CI-V Address
   states:
     coordinate:
@@ -51,8 +51,8 @@ blocks:
 - name: audio_dev
   id: variable
   parameters:
-    value: '''plughw:CARD=CODEC,DEV=0'''
-    comment: aplay -L | grep -i codec
+    value: '''plughw:CARD=Device,DEV=0'''
+    comment: aplay -L  (MK2 codec shows as C-Media USB Audio Device)
   states:
     coordinate:
     - 620
@@ -159,17 +159,17 @@ blocks:
       \        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v, str):\n        return\
       \ v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n    return bool(v)\n\n\n\
       class blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog,\
-      \ CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-...-if00-port0\n    radio_addr:\
-      \ CI-V address (IC-7300 default 0x94)\n    lead_ms: delay after confirmed TX before audio is un-muted\n\
-      \    tail_ms: carrier hold after PTT release\n    tx_timeout_s: watchdog, unkeys after this long\
-      \ in TX\n    cw_wpm: keyer speed set on start and when changed (0 = leave radio setting)\n    lib_dir:\
-      \ directory holding icom_civ.py (blank = flowgraph directory)\n    \"\"\"\n\n    def __init__(self,\
-      \ port='/dev/ttyUSB0', baud=115200, radio_addr=0x94,\n                 lead_ms=50, tail_ms=50, tx_timeout_s=180,\
-      \ cw_wpm=0, lib_dir=''):\n        gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None,\
-      \ out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),\n\
-      \                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n                      \
-      \   tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm = int(cw_wpm)\n        self._civ\
-      \ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
+      \ CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
+      \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
+      \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
+      \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
+      \ (0 = leave radio setting)\n    lib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n\
+      \    \"\"\"\n\n    def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n     \
+      \            lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, lib_dir=''):\n        gr.basic_block.__init__(self,\
+      \ name='Icom CI-V PTT', in_sig=None, out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud),\
+      \ radio_addr=int(radio_addr),\n                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n\
+      \                         tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm =\
+      \ int(cw_wpm)\n        self._civ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
       \        self.set_msg_handler(pmt.intern('ptt'), self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n\
       \        self.set_msg_handler(pmt.intern('cw'), self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n\
       \        self.message_port_register_out(pmt.intern('mute'))\n\n    # GRC turns a property with a\
@@ -207,15 +207,15 @@ blocks:
     - 260
     rotation: 0
     state: enabled
-    _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyUSB0''"), (''baud'', ''115200''),
-      (''radio_addr'', ''148''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
+    _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
+      (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
       (''cw_wpm'', ''0''), (''lib_dir'', "''''")], [(''ptt'', ''message'', 1), (''cw'', ''message'', 1)],
       [(''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom CI-V T/R control: PTT with lead/tail
-      timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-...-if00-port0\nradio_addr:
-      CI-V address (IC-7300 default 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms:
-      carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer
-      speed set on start and when changed (0 = leave radio setting)\nlib_dir: directory holding icom_civ.py
-      (blank = flowgraph directory)\n'', [''cw_wpm''])'
+      timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr:
+      CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio
+      is un-muted\ntail_ms: carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this
+      long in TX\ncw_wpm: keyer speed set on start and when changed (0 = leave radio setting)\nlib_dir:
+      directory holding icom_civ.py (blank = flowgraph directory)\n'', [''cw_wpm''])'
 - name: tone
   id: analog_sig_source_x
   parameters:
