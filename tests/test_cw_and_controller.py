@@ -40,6 +40,25 @@ class TestCwHelpers(unittest.TestCase):
         self.assertEqual(civ.wpm_to_civ(48), b"\x02\x55")
         self.assertEqual(civ.wpm_to_civ(27), b"\x01\x28")   # 127.5 -> 128
 
+    def test_level_mapping_matches_radio(self):
+        # observed on the IC-7300MK2 menu display
+        for level, pct in [(128, 50), (132, 51), (153, 60), (0, 0), (255, 100)]:
+            self.assertEqual(civ.level_to_percent(level), pct)
+        for pct in range(0, 101):
+            self.assertEqual(civ.level_to_percent(civ.percent_to_level(pct)), pct)
+
+    def test_bcd(self):
+        self.assertEqual(civ.bcd4(81), b"\x00\x81")
+        self.assertEqual(civ.from_bcd(b"\x01\x53"), 153)
+
+    def test_usb_mod_level(self):
+        r = FakeRadio()
+        with civ.CivPort(serial_port=r, timeout=0.2) as c:
+            self.assertEqual(c.get_usb_mod_level(), 50)
+            self.assertEqual(c.set_usb_mod_level(45), 45)
+        self.assertIn(bytes.fromhex("FEFEB6E01A050081") + civ.bcd4(civ.percent_to_level(45)) + b"\xfd",
+                      r.writes)
+
     def test_set_mode_frames(self):
         r = FakeRadio()
         with civ.CivPort(serial_port=r, timeout=0.2) as c:

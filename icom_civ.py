@@ -10,6 +10,7 @@ Has no GNU Radio dependency, so it can be tested on its own from the command lin
     python3 icom_civ.py --port /dev/ttyUSB0 rx        # force unkey
     python3 icom_civ.py --port /dev/ttyUSB0 cw "CQ TEST DE N0CALL" --wpm 20
     python3 icom_civ.py --port /dev/ttyUSB0 mode USB --data
+    python3 icom_civ.py --port /dev/ttyUSB0 usbmod        # read; 'usbmod 45' to set
 
 CI-V frame:  FE FE <to> <from> <cmd> [<sub>] [<data>...] FD
 """
@@ -47,6 +48,8 @@ CMD_FUNC = 0x16
 SUB_BREAK_IN = 0x47         # 00 off, 01 semi, 02 full
 CMD_EXT = 0x1A
 SUB_DATA_MODE = 0x06        # data: 00/01 (off/on), filter (00 when off, else 1-3)
+SUB_MENU = 0x05             # 1A 05 <item, 4-digit BCD> [data]: SET menu items
+MENU_USB_MOD_LEVEL = 81     # IC-7300MK2 (verified on hardware); level 0000-0255 = 0-100%
 
 MODES = {"LSB": 0x00, "USB": 0x01, "AM": 0x02, "CW": 0x03, "RTTY": 0x04,
          "FM": 0x05, "CW-R": 0x07, "RTTY-R": 0x08}
@@ -124,8 +127,37 @@ def wpm_to_civ(wpm: int) -> bytes:
     """Key speed in WPM -> 2-byte BCD level 0000-0255 (Hamlib's mapping)."""
     wpm = min(max(int(wpm), CW_WPM_MIN), CW_WPM_MAX)
     level = round((wpm - CW_WPM_MIN) * 255 / (CW_WPM_MAX - CW_WPM_MIN))
-    s = f"{level:04d}"
+    return bcd4(level)
+
+
+def bcd4(n: int) -> bytes:
+    """0-9999 -> 2 bytes BCD, big-endian (e.g. 81 -> 00 81, 128 -> 01 28)."""
+    if not 0 <= n <= 9999:
+        raise ValueError(f"BCD value out of range: {n}")
+    s = f"{n:04d}"
     return bytes([int(s[0]) << 4 | int(s[1]), int(s[2]) << 4 | int(s[3])])
+
+
+def from_bcd(data: bytes) -> int:
+    """Big-endian BCD bytes -> int."""
+    n = 0
+    for b in data:
+        hi, lo = b >> 4, b & 0x0F
+        if hi > 9 or lo > 9:
+            raise ValueError(f"not BCD: {data.hex(' ')}")
+        n = n * 100 + hi * 10 + lo
+    return n
+
+
+# Icom 0-255 levels <-> percent as the radio displays them. Matches readings from the
+# MK2: 50% = 128, 51% = 132, 60% = 153 (display = floor(level * 100 / 255)).
+def percent_to_level(pct: float) -> int:
+    pct = min(max(pct, 0), 100)
+    return min(255, -(-int(round(pct * 255)) // 100))   # ceil(pct * 2.55)
+
+
+def level_to_percent(level: int) -> int:
+    return level * 100 // 255
 
 
 class CivError(Exception):
@@ -373,6 +405,23 @@ class CivPort:
     def set_break_in(self, mode: str) -> None:
         self.transact(bytes([CMD_FUNC, SUB_BREAK_IN, BREAK_IN[mode.upper()]]))
 
+    # SET menu items (1A 05). Item numbers are model-specific.
+    def read_menu(self, item: int) -> bytes:
+        key = bytes([CMD_EXT, SUB_MENU]) + bcd4(item)
+        return self.transact(key, expect=key).payload[len(key):]
+
+    def write_menu(self, item: int, data: bytes) -> None:
+        self.transact(bytes([CMD_EXT, SUB_MENU]) + bcd4(item) + data)
+
+    def get_usb_mod_level(self) -> int:
+        """USB MOD Level in percent, as shown in MENU > SET > Connectors."""
+        return level_to_percent(from_bcd(self.read_menu(MENU_USB_MOD_LEVEL)))
+
+    def set_usb_mod_level(self, pct: float) -> int:
+        """Set USB MOD Level (0-100 %); returns the value the radio now reports."""
+        self.write_menu(MENU_USB_MOD_LEVEL, bcd4(percent_to_level(pct)))
+        return self.get_usb_mod_level()
+
     def set_mode(self, mode: str, data: bool = False, filt: int = 1) -> None:
         """Set mode and filter (1-3), and the DATA (-D) flag, e.g. set_mode('USB', data=True)."""
         mode = mode.upper()
@@ -412,6 +461,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_cw.add_argument("text")
     p_cw.add_argument("--wpm", type=int, default=20)
     p_cw.add_argument("--no-setup", action="store_true", help="don't change mode/break-in")
+    p_um = sub.add_parser("usbmod", help="read USB MOD Level, or set it: 'usbmod 45'")
+    p_um.add_argument("percent", type=float, nargs="?")
     p_mode = sub.add_parser("mode", help="set mode, e.g. 'mode USB --data' or 'mode CW'")
     p_mode.add_argument("mode", choices=list(MODES))
     p_mode.add_argument("--data", action="store_true")
@@ -450,6 +501,11 @@ def main(argv: Optional[list[str]] = None) -> int:
                 except KeyboardInterrupt:
                     civ.stop_cw()
                     print("stopped")
+            elif args.action == "usbmod":
+                if args.percent is None:
+                    print(f"USB MOD Level: {civ.get_usb_mod_level()}%")
+                else:
+                    print(f"USB MOD Level set: {civ.set_usb_mod_level(args.percent)}%")
             elif args.action == "mode":
                 civ.set_mode(args.mode, data=args.data, filt=args.filter)
                 print(f"mode {args.mode}{'-D' if args.data else ''} FIL{args.filter}")

@@ -44,6 +44,7 @@ python3 icom_civ.py --port ... tx 1                                    # key 1 s
 python3 icom_civ.py --port ... rx
 python3 icom_civ.py --port ... cw "TEST DE N0CALL" --wpm 20
 python3 icom_civ.py --port ... mode USB --data
+python3 icom_civ.py --port ... usbmod          # read USB MOD Level; 'usbmod 45' sets it
 ```
 
 ## GNU Radio
@@ -74,7 +75,8 @@ Verified on an IC-7300MK2 (2026-11-10): CI-V address `B6` on port `-if00`; `-if0
 not answer CI-V; echo back off; audio codec is C-Media `CARD=Device`; ID and PTT status
 reads work; CI-V PTT keys and unkeys with confirmed TX/RX; the CW keyer (CW mode, semi
 break-in, speed) sends cleanly, and text over 30 characters sent as back-to-back chunks
-has no gap.
+has no gap. USB MOD Level is SET-menu item `1A 05 0081` on the MK2 (level 0–255,
+radio shows floor(level×100/255) %); read and write verified.
 
 Not yet verified:
 

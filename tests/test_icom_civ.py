@@ -25,6 +25,7 @@ class FakeRadio:
         self.tx = False
         self.writes = []
         self.cw = []
+        self.menu = {}
         self.settings = []
         self._out = queue.Queue()
         self._parser = civ.FrameParser()
@@ -53,6 +54,12 @@ class FakeRadio:
             return reply(bytes([civ.CMD_PTT, civ.SUB_PTT, 0x01 if self.tx else 0x00]))
         if p[:2] == bytes([civ.CMD_READ_ID, civ.SUB_READ_ID]):
             return reply(bytes([civ.CMD_READ_ID, civ.SUB_READ_ID, self.addr]))
+        if p[:2] == bytes([civ.CMD_EXT, civ.SUB_MENU]) and len(p) >= 4:
+            item = p[2:4]
+            if len(p) == 4:
+                return reply(p + self.menu.get(item, b"\x01\x28"))
+            self.menu[item] = p[4:]
+            return reply(bytes([civ.ACK]))
         if p[0] == civ.CMD_SEND_CW and 2 <= len(p) <= 31:
             self.cw.append(p[1:])
             return reply(bytes([civ.ACK]))
