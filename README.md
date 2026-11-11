@@ -136,8 +136,8 @@ audio reaches the radio and the USB MOD Level slider changes ALC while transmitt
 Sidetone: SET > CW-KEY Set, items `0218` (level) and `0219` (limit to AF gain).
 
 RTTY: the modulator keys the radio, sends, and unkeys automatically (verified on the radio).
-gr-webserver console (2026-11-11): RTTY typed in the browser console was sent, and the
-radio unkeyed afterwards.
+gr-webserver console (2026-11-11): RTTY and CW typed in the browser console were sent, and
+the radio unkeyed afterwards.
 Not yet verified: decoding the transmitted RTTY with a separate receiver.
 
 ## Changing the flowgraph
