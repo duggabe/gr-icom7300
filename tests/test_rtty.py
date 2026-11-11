@@ -149,6 +149,17 @@ class TestTransmitter(unittest.TestCase):
         self.assertEqual(np.max(np.abs(audio[4096:])), 0.0)
         self.assertEqual(self.tx.state, rtty.IDLE)
 
+    def test_empty_text_aborts(self):
+        self.tx.send("A LONG MESSAGE THAT TAKES A WHILE")
+        self.tx.set_radio_state("TX")
+        self.run_audio(0.5)
+        self.tx.send("")
+        self.assertEqual(self.ptt, [True, False])
+        self.assertEqual(self.tx.state, rtty.IDLE)
+        self.assertEqual(np.max(np.abs(self.run_audio(0.3))), 0.0)
+        self.tx.send("")                                   # idle: nothing happens
+        self.assertEqual(self.ptt, [True, False])
+
     def test_type_ahead_same_burst(self):
         self.tx.send("ONE")
         self.tx.set_radio_state("TX")

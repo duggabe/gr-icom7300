@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Generate icom_tx_demo.grc with icom_ptt_epy.py and rtty_mod_epy.py embedded as
-Embedded Python Blocks.
+"""Generate icom_tx_demo.grc with icom_ptt_epy.py, rtty_mod_epy.py and
+console_router_epy.py embedded as Embedded Python Blocks.
 
 Two modes:
     python3 tools/make_grc.py                 build the demo .grc from scratch
                                               (overwrites it: any GRC edits are lost)
     python3 tools/make_grc.py --update-code [FILE.grc]
-                                              copy the current icom_ptt_epy.py and
-                                              rtty_mod_epy.py into the Embedded Python
+                                              copy the current block files
+                                              (see BLOCK_FILES) into the Embedded Python
                                               Blocks of an existing flowgraph (default
                                               icom_tx_demo.grc), keeping everything else
 
 --update-code finds the blocks by what their code says they are ("Icom CI-V PTT",
-"RTTY AFSK Mod"), so renamed blocks and extra copies are updated too. Parameter values
+"RTTY AFSK Mod", "Console Router"), so renamed blocks and extra copies are updated too. Parameter values
 you set in GRC are kept; parameters new in the code get their defaults. The previous
 file is saved as FILE.grc.bak. Close the flowgraph in GRC first, or GRC may save its
 old copy over the update.
@@ -22,8 +22,10 @@ Demo flowgraph:
                            +--> Add -> Mute -> Audio Sink (radio USB codec)
     [RTTY AFSK Mod] -------+
     PTT button ------------> [Icom CI-V PTT] -> mute msg -> Mute.set_mute
-    CW text box -----------> [Icom CI-V PTT] -> status msg -> status box, RTTY Mod
-    RTTY text box ---------> [RTTY AFSK Mod] -> ptt msg -> [Icom CI-V PTT]
+                             [Icom CI-V PTT] -> status msg -> status box, RTTY Mod, Router
+    gr-webserver -> ZMQ SUB -> [Console Router] -> cw -> [Icom CI-V PTT]
+                               [Console Router] -> rtty -> [RTTY AFSK Mod] -> ptt -> [Icom CI-V PTT]
+    gr-webserver <- ZMQ PUB <- [Console Router] <- RTTY Mod info
 """
 
 import argparse
@@ -42,7 +44,7 @@ def block(name, id_, coord, **params):
             "states": {"coordinate": list(coord), "rotation": 0, "state": "enabled"}}
 
 
-BLOCK_FILES = ("icom_ptt_epy.py", "rtty_mod_epy.py")
+BLOCK_FILES = ("icom_ptt_epy.py", "rtty_mod_epy.py", "console_router_epy.py")
 
 
 def update_code(path):
@@ -114,6 +116,8 @@ def build():
     io = epy_block_io.extract(src)
     rtty_src = open(os.path.join(ROOT, "rtty_mod_epy.py")).read()
     rtty_io = epy_block_io.extract(rtty_src)
+    router_src = open(os.path.join(ROOT, "console_router_epy.py")).read()
+    router_io = epy_block_io.extract(router_src)
     small = dict(maxoutbuf=1024)   # keep audio buffering (and so PTT release delay) short
 
     blocks = [
@@ -124,7 +128,8 @@ def build():
               comment="MENU > SET > Connectors > CI-V > CI-V Address"),
         block("audio_dev", "variable", (620, 12), value="'plughw:CARD=Device,DEV=0'",
               comment="aplay -L  (MK2 codec shows as C-Media USB Audio Device)"),
-        # GUI rows: 0 PTT | status   1 USB MOD | tone Hz   2 tone on | CW WPM   3 CW text   4 RTTY text
+        # GUI rows: 0 PTT | status   1 USB MOD | tone Hz   2 tone on | CW WPM
+        # (text in and out goes through the gr-webserver browser console)
         block("ptt", "variable_qtgui_toggle_button_msg", (16, 120), label="PTT", type="bool",
               value="False", pressed="True", released="False", initPressed="False",
               outputmsgname="value", pressBackgroundColor="red", pressFontColor="white",
@@ -145,12 +150,15 @@ def build():
         block("cw_wpm", "variable_qtgui_range", (16, 240), label="CW WPM", rangeType="int",
               value=20, start=6, stop=48, step=1, widget="counter_slider",
               gui_hint="2,1,1,1"),
-        block("cw_text", "qtgui_edit_box_msg", (16, 480), type="string", value="''",
-              label="'CW text (Enter to send, empty = abort)'", is_pair="False",
-              is_static="False", key="''", gui_hint="3,0,1,2"),
-        block("rtty_text", "qtgui_edit_box_msg", (16, 840), type="string", value="''",
-              label="'RTTY text (Enter to send; radio in LSB-D)'", is_pair="False",
-              is_static="False", key="''", gui_hint="4,0,1,2"),
+        block("console_in", "zeromq_sub_msg_source", (16, 860),
+              address="'tcp://127.0.0.1:50251'", timeout=100, bind="False",
+              comment="Text typed in gr-webserver (v2.1, PUB/SUB). For v1.0.16 use "
+                      "a ZMQ PULL Message Source instead."),
+        block("console", "epy_block", (420, 900), _source_code=router_src, mode="'RTTY'"),
+        block("console_out", "zeromq_pub_msg_sink", (900, 900),
+              address="'tcp://127.0.0.1:50252'", timeout=100, bind="True",
+              comment="Lines shown in gr-webserver. For v1.0.16 use a ZMQ PUSH "
+                      "Message Sink instead."),
         block("icom_ptt", "epy_block", (420, 260),
               _source_code=src, port="serial_port", baud=115200, radio_addr="radio_addr",
               lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm="cw_wpm",
@@ -170,6 +178,7 @@ def build():
     ]
     next(b for b in blocks if b["name"] == "icom_ptt")["states"]["_io_cache"] = repr(tuple(io))
     next(b for b in blocks if b["name"] == "rtty_mod")["states"]["_io_cache"] = repr(tuple(rtty_io))
+    next(b for b in blocks if b["name"] == "console")["states"]["_io_cache"] = repr(tuple(router_io))
 
     fg = {
         "options": {
@@ -182,10 +191,14 @@ def build():
         "blocks": blocks,
         "connections": [
             ["ptt", "state", "icom_ptt", "ptt"],
-            ["cw_text", "msg", "icom_ptt", "cw"],
+            ["console_in", "out", "console", "in"],
+            ["console", "cw", "icom_ptt", "cw"],
+            ["console", "rtty", "rtty_mod", "text"],
+            ["console", "display", "console_out", "in"],
+            ["icom_ptt", "status", "console", "status"],
+            ["rtty_mod", "info", "console", "info"],
             ["icom_ptt", "status", "status_box", "val"],
             ["icom_ptt", "mute", "tx_mute", "set_mute"],
-            ["rtty_text", "msg", "rtty_mod", "text"],
             ["icom_ptt", "status", "rtty_mod", "status"],
             ["rtty_mod", "ptt", "icom_ptt", "ptt"],
             ["tone", "0", "audio_sum", "0"],

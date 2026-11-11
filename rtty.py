@@ -205,6 +205,9 @@ class RttyTransmitter:
         if bad:
             self.on_info(f"RTTY: skipped unsupported characters {bad!r}")
         if not text.strip():
+            if self.state != IDLE:            # empty text = abort, as for CW
+                self.abort()
+                self.on_info("RTTY: stopped")
             return
         if self.state == SENDING:
             self.gen.add_codes(self.enc.encode(text + "\r\n"))

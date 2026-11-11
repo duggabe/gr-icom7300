@@ -5,6 +5,7 @@ Stream output: float audio at samp_rate (silence when idle).
 Message inputs:
   text   - text to send (string, or pair from QT GUI Message Edit Box). Each message is
            sent on its own line. Text typed while sending is appended to the same burst.
+           Empty text aborts the transmission.
   status - connect to the Icom CI-V PTT block's status output.
 Message outputs:
   ptt    - connect to the Icom CI-V PTT block's ptt input. The modulator keys the radio,

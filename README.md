@@ -16,7 +16,8 @@ Not designed for voice.
 | `icom_ptt_epy.py` | Source of the GNU Radio Embedded Python Block (message ports only). |
 | `rtty.py` | RTTY modulator: Baudot encoder, phase-continuous AFSK, PTT coordination. No GNU Radio dependency. |
 | `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW and RTTY text boxes, WPM and USB MOD Level sliders, status, test tone + RTTY → Mute → radio USB audio. |
+| `console_router_epy.py` | Source of the Console Router Embedded Python Block: connects the gr-webserver browser console to CW and RTTY and shows radio status there. |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio. |
 | `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
@@ -84,13 +85,38 @@ to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are ski
 
 - Put the radio in **LSB-D** (`icom_civ.py ... mode LSB --data`): audio mark 2125 / space
   2295 Hz then gives mark on the higher RF frequency, the normal sense. For USB-D, swap them.
-- Type in the RTTY text box and press Enter. The modulator requests PTT, waits for the PTT
+- Type in the gr-webserver console (mode RTTY) and press Enter. The modulator requests PTT, waits for the PTT
   block to report TX, sends mark idle + LTRS, the text on its own line, a mark tail, then
   releases PTT after `release_delay_s` (covers about 0.4 s of audio buffering).
-- Text entered while sending is appended to the same transmission.
+- Text entered while sending is appended to the same transmission. An empty line aborts.
 - If you hold PTT yourself, the modulator sends without keying or releasing.
 - The RTTY amplitude (0.3) matches the test tone, so the USB MOD Level set with the tone
   carries over.
+
+## Text console (gr-webserver)
+
+Text in and out goes through [gr-webserver](https://github.com/duggabe/gr-webserver), a
+terminal-style browser page, instead of QT GUI Message Edit Boxes. The demo uses gr-webserver
+v2.1 (ZMQ PUB/SUB): a ZMQ SUB Message Source on `tcp://127.0.0.1:50251` (bind off) feeds the
+**Console Router**, and a ZMQ PUB Message Sink on `tcp://127.0.0.1:50252` (bind on) carries its
+display lines back. For gr-webserver v1.0.16, replace them with ZMQ PULL Message Source and
+ZMQ PUSH Message Sink blocks (same addresses and bind settings).
+
+1. Start gr-webserver in its own terminal: `cd ~/gr-webserver && node index.js`. A browser
+   tab opens.
+2. Start the flowgraph. The console shows `Mode RTTY. Type /help for commands.`
+3. Type a line and press Enter. It goes out in the current mode.
+
+| Console input | Action |
+|---|---|
+| text | send as RTTY or CW (current mode) |
+| `/rtty`, `/cw` | switch mode (starts in the block's `mode` parameter, default RTTY) |
+| `/stop` or an empty line | abort the CW or RTTY transmission in progress |
+| `/help` | list the commands |
+
+The console shows `TX`, `TX (CW keyer)`, `RX`, errors from the PTT block, and RTTY notices
+such as skipped characters. gr-webserver keeps the last 20 lines. Its one-byte length field
+limits a line to 255 ASCII characters.
 
 ## Tests
 
