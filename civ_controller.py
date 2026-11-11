@@ -19,7 +19,7 @@ import time
 from typing import Callable, Optional
 
 import icom_civ
-from icom_civ import CivError
+from icom_civ import CivError, CivNak
 
 RX, LEAD, TX, TAIL, CW = "RX", "LEAD", "TX", "TAIL", "CW"
 
@@ -37,6 +37,7 @@ class TxController:
         tail: float = 0.05,
         tx_timeout: float = 180.0,
         cw_wpm: int = 0,
+        usb_mod_level: float = -1,
         on_state: Optional[Callable[[str], None]] = None,
         on_mute: Optional[Callable[[bool], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
@@ -50,6 +51,8 @@ class TxController:
         self.on_error = on_error or (lambda e: None)
         self._wpm = cw_wpm          # 0 = use the radio's current keyer speed
         self._wpm_est = cw_wpm or 20  # speed used to estimate CW duration
+        self._usbmod_want: Optional[float] = usb_mod_level if usb_mod_level >= 0 else None
+        self._usbmod_applied: Optional[float] = None
         self._q: "queue.Queue[tuple]" = queue.Queue()
         self._state = RX
         self._deadline: Optional[float] = None
@@ -77,6 +80,12 @@ class TxController:
     def set_wpm(self, wpm: int) -> None:
         self._q.put(("wpm", int(wpm)))
 
+    def set_usb_mod_level(self, pct: float) -> None:
+        """Set the radio's USB MOD Level (0-100 %). Rapid calls (a slider being
+        dragged) collapse into one radio write of the latest value."""
+        self._usbmod_want = float(pct)
+        self._q.put(("usbmod",))
+
     def close(self, timeout: float = 2.0) -> None:
         """Unkey and stop the worker. Safe to call more than once."""
         if self._thread is not None:
@@ -90,6 +99,8 @@ class TxController:
         self.on_state(RX)
         if self._wpm:
             self._radio(self.civ.set_cw_speed, self._wpm)
+        if self._usbmod_want is not None:
+            self._on_usbmod()
         try:
             while True:
                 wait = None if self._deadline is None else max(0.0, self._deadline - time.monotonic())
@@ -192,6 +203,20 @@ class TxController:
         if wpm:
             self._wpm_est = min(max(wpm, icom_civ.CW_WPM_MIN), icom_civ.CW_WPM_MAX)
             self._radio(self.civ.set_cw_speed, wpm)
+
+    def _on_usbmod(self) -> None:
+        want = self._usbmod_want
+        if want is None or want == self._usbmod_applied:
+            return
+        try:
+            self.civ.set_usb_mod_level(want)
+            self._usbmod_applied = want
+        except CivNak:
+            # radio refused the setting: report it, but don't drop an ongoing TX for it
+            self.on_error(f"radio rejected USB MOD Level {want:g}%")
+        except CivError as e:
+            self.on_error(str(e))
+            self._safe_unkey()
 
     def _on_timer(self) -> None:
         s = self._state

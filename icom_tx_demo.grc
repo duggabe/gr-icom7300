@@ -112,6 +112,25 @@ blocks:
     - 360
     rotation: 0
     state: enabled
+- name: usb_mod_level
+  id: variable_qtgui_range
+  parameters:
+    label: USB MOD Level %
+    rangeType: int
+    value: '50'
+    start: '0'
+    stop: '100'
+    step: '1'
+    widget: counter_slider
+    gui_hint: 3,0,1,2
+    comment: Sent to the radio on start and when moved. Adjust while the test tone transmits until ALC
+      barely moves.
+  states:
+    coordinate:
+    - 16
+    - 600
+    rotation: 0
+    state: enabled
 - name: cw_text
   id: qtgui_edit_box_msg
   parameters:
@@ -163,26 +182,31 @@ blocks:
       \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
       \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
       \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
-      \ (0 = leave radio setting)\n    lib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n\
-      \    \"\"\"\n\n    def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n     \
-      \            lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, lib_dir=''):\n        gr.basic_block.__init__(self,\
-      \ name='Icom CI-V PTT', in_sig=None, out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud),\
-      \ radio_addr=int(radio_addr),\n                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n\
-      \                         tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm =\
-      \ int(cw_wpm)\n        self._civ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
+      \ (0 = leave radio setting)\n    usb_mod_level: radio USB MOD Level %, set on start and when changed\
+      \ (-1 = leave)\n    lib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n    \"\
+      \"\"\n\n    def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n            \
+      \     lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, usb_mod_level=-1,\n                 lib_dir=''):\n\
+      \        gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None, out_sig=None)\n      \
+      \  self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),\n                   \
+      \      lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n                         tx_timeout=float(tx_timeout_s),\
+      \ lib_dir=lib_dir)\n        self._wpm = int(cw_wpm)\n        self._usbmod = float(usb_mod_level)\n\
+      \        self._civ = None\n        self._ctl = None\n\n        self.message_port_register_in(pmt.intern('ptt'))\n\
       \        self.set_msg_handler(pmt.intern('ptt'), self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n\
       \        self.set_msg_handler(pmt.intern('cw'), self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n\
       \        self.message_port_register_out(pmt.intern('mute'))\n\n    # GRC turns a property with a\
       \ setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n    def cw_wpm(self):\n\
       \        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n        self._wpm =\
-      \ int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\n    def\
-      \ start(self):\n        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n\
-      \            sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
+      \ int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\n    @property\n\
+      \    def usb_mod_level(self):\n        return self._usbmod\n\n    @usb_mod_level.setter\n    def\
+      \ usb_mod_level(self, pct):\n        self._usbmod = float(pct)\n        if self._ctl is not None\
+      \ and self._usbmod >= 0:\n            self._ctl.set_usb_mod_level(self._usbmod)\n\n    def start(self):\n\
+      \        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n      \
+      \      sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
       \        self._civ = icom_civ.CivPort(cfg['port'], cfg['baud'], cfg['radio_addr'])\n        try:\n\
       \            self._civ.open()\n        except Exception as e:\n            self._civ = None\n  \
       \          self._publish_status(f\"ERROR: cannot open {cfg['port']}: {e}\")\n            raise\n\
       \        self._ctl = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'],\
-      \ tx_timeout=cfg['tx_timeout'],\n            cw_wpm=self._wpm, on_state=self._publish_status,\n\
+      \ tx_timeout=cfg['tx_timeout'],\n            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._publish_status,\n\
       \            on_mute=self._publish_mute, on_error=lambda e: self._publish_status('ERROR: ' + e))\n\
       \        self._ctl.start()\n        return True\n\n    def stop(self):\n        if self._ctl is\
       \ not None:\n            self._ctl.close()           # always unkeys\n            self._ctl = None\n\
@@ -200,6 +224,7 @@ blocks:
     tail_ms: '50'
     tx_timeout_s: '180'
     cw_wpm: cw_wpm
+    usb_mod_level: usb_mod_level
     lib_dir: ''''''
   states:
     coordinate:
@@ -209,13 +234,15 @@ blocks:
     state: enabled
     _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
       (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
-      (''cw_wpm'', ''0''), (''lib_dir'', "''''")], [(''ptt'', ''message'', 1), (''cw'', ''message'', 1)],
-      [(''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom CI-V T/R control: PTT with lead/tail
-      timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr:
-      CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio
-      is un-muted\ntail_ms: carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this
-      long in TX\ncw_wpm: keyer speed set on start and when changed (0 = leave radio setting)\nlib_dir:
-      directory holding icom_civ.py (blank = flowgraph directory)\n'', [''cw_wpm''])'
+      (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''lib_dir'', "''''")], [(''ptt'', ''message'',
+      1), (''cw'', ''message'', 1)], [(''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom
+      CI-V T/R control: PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport: serial device, e.g.
+      /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr: CI-V address (IC-7300MK2 default
+      0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms: carrier
+      hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer speed
+      set on start and when changed (0 = leave radio setting)\nusb_mod_level: radio USB MOD Level %, set
+      on start and when changed (-1 = leave)\nlib_dir: directory holding icom_civ.py (blank = flowgraph
+      directory)\n'', [''cw_wpm'', ''usb_mod_level''])'
 - name: tone
   id: analog_sig_source_x
   parameters:

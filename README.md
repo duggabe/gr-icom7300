@@ -13,7 +13,7 @@ Intended for digital data, RTTY (AFSK over USB audio) and Morse code. Not design
 | `icom_civ.py` | CI-V protocol: frames, serial reader thread, PTT, CW keyer, mode, break-in. Also a CLI test tool. No GNU Radio dependency. |
 | `civ_controller.py` | T/R sequencing: lead/tail timing, TX watchdog, CW state, audio mute. No GNU Radio dependency. |
 | `icom_ptt_epy.py` | Source of the GNU Radio Embedded Python Block (message ports only). |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW text box, WPM slider, status, test tone → Mute → radio USB audio. |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, CW text box, WPM and USB MOD Level sliders, status, test tone → Mute → radio USB audio. |
 | `tools/make_grc.py` | Regenerates `icom_tx_demo.grc` after editing `icom_ptt_epy.py`. |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
@@ -62,6 +62,11 @@ Block **Icom CI-V PTT**:
 
 Sequence: key → confirm TX → `lead_ms` → un-mute → … release → mute → `tail_ms` → unkey.
 The watchdog unkeys after `tx_timeout_s`. `stop()` always unkeys.
+
+`cw_wpm` and `usb_mod_level` can be driven by GRC variables (e.g. QT GUI Range). Each is
+sent to the radio on start and whenever it changes; `0` / `-1` leaves the radio's
+setting alone. The demo's USB MOD Level slider starts at 50%, so starting the flowgraph
+sets the radio to 50%. Adjust it while the test tone transmits until ALC barely moves.
 
 ## Tests
 

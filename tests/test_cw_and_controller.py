@@ -141,6 +141,29 @@ class TestController(unittest.TestCase):
         self.assertEqual(self.r.cw, [b"E E"])
         self.assertIn(b"\x14\x0c" + civ.wpm_to_civ(40), self.r.settings)
 
+    def test_usb_mod_level_coalesced(self):
+        self.r, self.port, self.c, rec = make(usb_mod_level=40)
+        for pct in range(41, 61):        # slider drag
+            self.c.set_usb_mod_level(pct)
+        deadline = time.time() + 2
+        while time.time() < deadline and self.r.menu.get(b"\x00\x81") != civ.bcd4(civ.percent_to_level(60)):
+            time.sleep(0.02)
+        self.assertEqual(self.r.menu[b"\x00\x81"], civ.bcd4(civ.percent_to_level(60)))
+        writes = [w for w in self.r.writes if w.startswith(bytes.fromhex("FEFEB6E01A050081")) and len(w) > 9]
+        self.assertLess(len(writes), 21)  # first (40%) + coalesced updates, not one per step
+
+    def test_usb_mod_nak_keeps_tx(self):
+        self.r, self.port, self.c, rec = make(lead=0.0)
+        self.c.ptt(True)
+        self.assertTrue(rec.wait_state(ctl.TX))
+        self.r.nak = True
+        self.c.set_usb_mod_level(30)
+        time.sleep(0.2)
+        self.r.nak = False
+        self.assertEqual(self.c.state, ctl.TX)
+        self.assertTrue(self.r.tx)
+        self.assertIn("rejected USB MOD", rec.errors[0])
+
     def test_cw_rejected_during_ptt(self):
         self.r, self.port, self.c, rec = make(lead=0.0)
         self.c.ptt(True)

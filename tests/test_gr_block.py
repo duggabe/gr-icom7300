@@ -102,6 +102,10 @@ class TestGrBlock(unittest.TestCase):
             self.assertTrue(wait(lambda: b"\x14\x0c" + __import__("icom_civ").wpm_to_civ(25)
                                  in radio.radio.settings))
 
+            blk.usb_mod_level = 45   # GRC callback path (slider)
+            self.assertTrue(wait(lambda: radio.radio.menu.get(b"\x00\x81")
+                                 == __import__("icom_civ").bcd4(__import__("icom_civ").percent_to_level(45))))
+
             mutes = [pmt.to_python(mute.get_message(i)) for i in range(mute.num_messages())]
             self.assertEqual(mutes[:3], [True, False, True])
             self.assertEqual(statuses()[:5], ["RX", "LEAD", "TX", "TAIL", "RX"])

@@ -50,6 +50,11 @@ def main():
         block("tone_freq", "variable_qtgui_range", (16, 360), label="Test tone Hz",
               rangeType="float", value=1500, start=300, stop=2700, step=10,
               widget="counter_slider", gui_hint="1,1,1,1"),
+        block("usb_mod_level", "variable_qtgui_range", (16, 600), label="USB MOD Level %",
+              rangeType="int", value=50, start=0, stop=100, step=1,
+              widget="counter_slider", gui_hint="3,0,1,2",
+              comment="Sent to the radio on start and when moved. Adjust while the "
+                      "test tone transmits until ALC barely moves."),
         block("cw_text", "qtgui_edit_box_msg", (16, 480), type="string", value="''",
               label="'CW text (Enter to send, empty = abort)'", is_pair="False",
               is_static="False", key="''", gui_hint="2,0,1,2"),
@@ -58,14 +63,15 @@ def main():
               gui_hint="0,1,1,1"),
         block("icom_ptt", "epy_block", (360, 260),
               _source_code=src, port="serial_port", baud=115200, radio_addr="radio_addr",
-              lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm="cw_wpm", lib_dir="''"),
+              lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm="cw_wpm",
+              usb_mod_level="usb_mod_level", lib_dir="''"),
         block("tone", "analog_sig_source_x", (360, 460), type="float", samp_rate="samp_rate",
               waveform="analog.GR_COS_WAVE", freq="tone_freq", amp=0.3, offset=0, phase=0),
         block("tx_mute", "blocks_mute_xx", (620, 480), type="float", mute="True"),
         block("audio_out", "audio_sink", (820, 480), samp_rate="samp_rate",
               device_name="audio_dev", ok_to_block="True", num_inputs=1),
     ]
-    blocks[9]["states"]["_io_cache"] = repr(tuple(io))
+    next(b for b in blocks if b["id"] == "epy_block")["states"]["_io_cache"] = repr(tuple(io))
 
     fg = {
         "options": {

@@ -42,16 +42,19 @@ class blk(gr.basic_block):
     tail_ms: carrier hold after PTT release
     tx_timeout_s: watchdog, unkeys after this long in TX
     cw_wpm: keyer speed set on start and when changed (0 = leave radio setting)
+    usb_mod_level: radio USB MOD Level %, set on start and when changed (-1 = leave)
     lib_dir: directory holding icom_civ.py (blank = flowgraph directory)
     """
 
     def __init__(self, port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,
-                 lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, lib_dir=''):
+                 lead_ms=50, tail_ms=50, tx_timeout_s=180, cw_wpm=0, usb_mod_level=-1,
+                 lib_dir=''):
         gr.basic_block.__init__(self, name='Icom CI-V PTT', in_sig=None, out_sig=None)
         self._cfg = dict(port=port, baud=int(baud), radio_addr=int(radio_addr),
                          lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,
                          tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)
         self._wpm = int(cw_wpm)
+        self._usbmod = float(usb_mod_level)
         self._civ = None
         self._ctl = None
 
@@ -73,6 +76,16 @@ class blk(gr.basic_block):
         if self._ctl is not None:
             self._ctl.set_wpm(self._wpm)
 
+    @property
+    def usb_mod_level(self):
+        return self._usbmod
+
+    @usb_mod_level.setter
+    def usb_mod_level(self, pct):
+        self._usbmod = float(pct)
+        if self._ctl is not None and self._usbmod >= 0:
+            self._ctl.set_usb_mod_level(self._usbmod)
+
     def start(self):
         cfg = self._cfg
         if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:
@@ -88,7 +101,7 @@ class blk(gr.basic_block):
             raise
         self._ctl = civ_controller.TxController(
             self._civ, lead=cfg['lead'], tail=cfg['tail'], tx_timeout=cfg['tx_timeout'],
-            cw_wpm=self._wpm, on_state=self._publish_status,
+            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._publish_status,
             on_mute=self._publish_mute, on_error=lambda e: self._publish_status('ERROR: ' + e))
         self._ctl.start()
         return True
