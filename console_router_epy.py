@@ -8,14 +8,14 @@ Connect:
   cw   -> Icom CI-V PTT block's cw input
   rtty -> RTTY AFSK Mod's text input
   Icom CI-V PTT status -> status,  RTTY AFSK Mod info -> info
-  RTTY Demod text -> rx
+  RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw
 
 Each line typed in the console is sent in the current mode. Commands:
   /cw  /rtty   switch mode
   /stop        abort the current CW or RTTY transmission (an empty line does the same)
   /help        list the commands
-The console shows received RTTY text as it is, and radio state changes (TX / RX), errors
-and notices with a "* " in front.
+The console shows received text for the current mode (RTTY in RTTY mode, CW in CW mode)
+as it is, and radio state changes (TX / RX), errors and notices with a "* " in front.
 """
 
 import threading
@@ -52,7 +52,8 @@ class blk(gr.basic_block):
         self._error = None
         self._greet = threading.Timer(0, lambda: None)
         for port, handler in (("in", self._handle_in), ("status", self._handle_status),
-                              ("info", self._handle_info), ("rx", self._handle_rx)):
+                              ("info", self._handle_info), ("rx_rtty", self._handle_rx_rtty),
+                              ("rx_cw", self._handle_rx_cw)):
             self.message_port_register_in(pmt.intern(port))
             self.set_msg_handler(pmt.intern(port), handler)
         for port in ("display", "cw", "rtty"):
@@ -112,5 +113,10 @@ class blk(gr.basic_block):
     def _handle_info(self, msg):
         self._note(_text(msg))
 
-    def _handle_rx(self, msg):
-        self._show(_text(msg))
+    def _handle_rx_rtty(self, msg):
+        if self._mode == "RTTY":
+            self._show(_text(msg))
+
+    def _handle_rx_cw(self, msg):
+        if self._mode == "CW":
+            self._show(_text(msg))

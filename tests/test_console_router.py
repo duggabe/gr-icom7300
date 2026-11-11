@@ -106,11 +106,23 @@ class TestConsoleRouter(unittest.TestCase):
         for want in ("* Mode RTTY. Type /help for commands.", "* Mode CW", "* Stop", "* Mode RTTY", "* Unknown command /bogus. Type /help."):
             self.assertIn(want, lines)
 
+    def test_received_text_follows_mode(self):
+        self.post("rx_cw", "CW BEFORE")
+        self.type("/cw")
+        self.post("rx_cw", "CQ TEST")
+        self.post("rx_rtty", "RTTY HIDDEN")
+        self.type("/rtty")
+        self.post("rx_rtty", "RYRY")
+        time.sleep(0.6)
+        lines = [l for l in self.screen_lines() if not l.startswith("* ")]
+        self.assertEqual(lines, ["CQ TEST", "RYRY"])
+
     def test_status_display(self):
         for s in ("LEAD", "TX", "TAIL", "RX", "RX | ERROR: no reply", "RX", "CW", "RX"):
             self.post("status", s)
         self.post("info", "RTTY: skipped unsupported characters '<!>'")
-        self.post("rx", "CQ CQ DE N0CALL")
+        self.post("rx_rtty", "CQ CQ DE N0CALL")
+        self.post("rx_cw", "NOT SHOWN IN RTTY MODE")
         lines = [l for l in self.screen_lines() if not l.startswith("* Mode ")]   # greeting
         self.assertEqual(lines, ["* TX", "* RX", "* ERROR: no reply", "* TX (CW keyer)", "* RX",
                                  "* RTTY: skipped unsupported characters '&lt;!>'",

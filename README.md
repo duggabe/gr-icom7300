@@ -17,8 +17,10 @@ Not designed for voice.
 | `rtty.py` | RTTY modulator (Baudot encoder, phase-continuous AFSK, PTT coordination) and demodulator (mark/space filters, UART, Baudot decode). No GNU Radio dependency. |
 | `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
 | `rtty_demod_epy.py` | Source of the RTTY Demod Embedded Python Block (float audio in, text lines out). |
+| `cw_rx.py` | CW decoder: tone filter with AFC, keying detector with squelch, adaptive speed, Morse table. No GNU Radio dependency. |
+| `cw_demod_epy.py` | Source of the CW Decoder Embedded Python Block (float audio in, text lines out). |
 | `console_router_epy.py` | Source of the Console Router Embedded Python Block: connects the gr-webserver browser console to CW and RTTY and shows radio status there. |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio; radio USB audio → RTTY Demod → console, plus a tuning waterfall and RX Reverse checkbox. |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio; radio USB audio → RTTY Demod and CW Decoder → console, plus a tuning waterfall and RX Reverse checkbox. |
 | `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
@@ -116,6 +118,27 @@ sends each received line to the console.
 - In tests it copies text error-free at about +2 dB SNR (3 kHz bandwidth) and runs about
   150× faster than real time.
 
+## CW receive
+
+Block **CW Decoder** decodes the radio's USB audio in CW mode and sends each received line
+to the console (shown in console mode CW, `/cw`).
+
+- Radio: CW mode, USB AF/IF Output as for RTTY receive. Set the flowgraph's `cw_pitch`
+  variable to the radio's CW Pitch (600 Hz default); AFC follows the strongest tone within
+  150 Hz of it, so zero-beating isn't critical.
+- Speed: starts from the CW WPM slider and adapts to the sender (5–60 WPM) by sorting recent
+  marks into dots and dashes. The first character or two can be wrong while it locks on.
+  Letter and word gaps are learned from the sender, so Farnsworth spacing works.
+- Squelch (`squelch`, default 6.5): over the last 2 s, the ratio of the key-down envelope
+  (99th percentile) to the gap envelope (20th) must exceed it. Noise alone gives 3.8–5.8, so
+  band noise prints nothing; 20 ms of signal raises it, so a new transmission's first
+  element is caught.
+- Prosigns print as `<AR>`, `<SK>`, `<KN>`, `<BK>`, `<HH>`; unknown patterns as `*`.
+- Decoding pauses while the radio transmits. Speed and levels are kept, so the other
+  station's reply decodes from its first character.
+- In tests: clean copy at 13–50 WPM, ±130 Hz off pitch, 15% timing jitter, 6 dB fades, and
+  about 4 dB SNR (500 Hz bandwidth); runs about 60× faster than real time.
+
 ## Text console (gr-webserver)
 
 Text in and out goes through [gr-webserver](https://github.com/duggabe/gr-webserver), a
@@ -137,7 +160,7 @@ ZMQ PUSH Message Sink blocks (same addresses and bind settings).
 | `/stop` or an empty line | abort the CW or RTTY transmission in progress |
 | `/help` | list the commands |
 
-Received RTTY text appears as it is. The router's own lines start with `* `: `* TX`,
+Received text appears as it is, for the current mode only: RTTY in `/rtty`, CW in `/cw`. The router's own lines start with `* `: `* TX`,
 `* TX (CW keyer)`, `* RX`, errors from the PTT block, and RTTY notices such as skipped
 characters. A received line appears when it ends, reaches 64 characters, or after 2 s
 without new characters. gr-webserver keeps the last 20 lines. Its one-byte length field

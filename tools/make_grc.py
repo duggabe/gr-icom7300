@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Generate icom_tx_demo.grc with icom_ptt_epy.py, rtty_mod_epy.py, rtty_demod_epy.py and
-console_router_epy.py embedded as Embedded Python Blocks.
+"""Generate icom_tx_demo.grc with icom_ptt_epy.py, rtty_mod_epy.py, rtty_demod_epy.py,
+cw_demod_epy.py and console_router_epy.py embedded as Embedded Python Blocks.
 
 Two modes:
     python3 tools/make_grc.py                 build the demo .grc from scratch
@@ -12,7 +12,7 @@ Two modes:
                                               icom_tx_demo.grc), keeping everything else
 
 --update-code finds the blocks by what their code says they are ("Icom CI-V PTT",
-"RTTY AFSK Mod", "RTTY Demod", "Console Router"), so renamed blocks and extra copies are updated too. Parameter values
+"RTTY AFSK Mod", "RTTY Demod", "CW Decoder", "Console Router"), so renamed blocks and extra copies are updated too. Parameter values
 you set in GRC are kept; parameters new in the code get their defaults. The previous
 file is saved as FILE.grc.bak. Close the flowgraph in GRC first, or GRC may save its
 old copy over the update.
@@ -25,8 +25,9 @@ Demo flowgraph:
                              [Icom CI-V PTT] -> status msg -> status box, RTTY Mod, Router
     gr-webserver -> ZMQ SUB -> [Console Router] -> cw -> [Icom CI-V PTT]
                                [Console Router] -> rtty -> [RTTY AFSK Mod] -> ptt -> [Icom CI-V PTT]
-    gr-webserver <- ZMQ PUB <- [Console Router] <- RTTY Mod info, RTTY Demod text
-    Audio Source (radio USB codec) -> [RTTY Demod] -> text -> [Console Router]
+    gr-webserver <- ZMQ PUB <- [Console Router] <- RTTY Mod info, RTTY Demod / CW Decoder text
+    Audio Source (radio USB codec) -> [RTTY Demod] -> text -> [Console Router] rx_rtty
+                                   -> [CW Decoder] -> text -> [Console Router] rx_cw
                                    -> Resampler /8 -> Waterfall (tuning, 0-3 kHz)
 """
 
@@ -46,7 +47,8 @@ def block(block_name, id_, coord, **params):
             "states": {"coordinate": list(coord), "rotation": 0, "state": "enabled"}}
 
 
-BLOCK_FILES = ("icom_ptt_epy.py", "rtty_mod_epy.py", "rtty_demod_epy.py", "console_router_epy.py")
+BLOCK_FILES = ("icom_ptt_epy.py", "rtty_mod_epy.py", "rtty_demod_epy.py", "cw_demod_epy.py",
+               "console_router_epy.py")
 
 
 def update_code(path):
@@ -122,6 +124,8 @@ def build():
     router_io = epy_block_io.extract(router_src)
     demod_src = open(os.path.join(ROOT, "rtty_demod_epy.py")).read()
     demod_io = epy_block_io.extract(demod_src)
+    cwdec_src = open(os.path.join(ROOT, "cw_demod_epy.py")).read()
+    cwdec_io = epy_block_io.extract(cwdec_src)
     small = dict(maxoutbuf=1024)   # keep audio buffering (and so PTT release delay) short
 
     blocks = [
@@ -130,6 +134,9 @@ def build():
               comment="ls -l /dev/serial/by-id/  (MK2: CI-V is the -if00 port)"),
         block("radio_addr", "variable", (480, 12), value="0xB6",
               comment="MENU > SET > Connectors > CI-V > CI-V Address"),
+        block("cw_pitch", "variable", (780, 12), value=600,
+              comment="Radio CW Pitch (FUNCTION > CW pitch knob, or MENU); the CW decoder "
+                      "follows tones within 150 Hz of it"),
         block("audio_dev", "variable", (620, 12), value="'plughw:CARD=Device,DEV=0'",
               comment="aplay -L  (MK2 codec shows as C-Media USB Audio Device)"),
         # GUI rows: 0 PTT | status   1 USB MOD | tone Hz   2 tone on | CW WPM
@@ -166,10 +173,13 @@ def build():
               samp_rate="samp_rate", baud=45.45, mark_hz=2125.0, space_hz=2295.0,
               reverse="rx_reverse", squelch=0.6, usos="True", line_width=64,
               holdoff_s=0.5, lib_dir="''"),
+        block("cw_decoder", "epy_block", (420, 1180), _source_code=cwdec_src,
+              samp_rate="samp_rate", pitch_hz="cw_pitch", afc_hz=150.0, wpm="cw_wpm",
+              squelch=6.5, line_width=64, holdoff_s=0.5, lib_dir="''"),
         block("rx_decim", "rational_resampler_xxx", (420, 1260), type="fff", interp=1,
               decim=8, taps="[]", fbw=0),
         block("rx_waterfall", "qtgui_waterfall_sink_x", (700, 1260), type="float",
-              name="'RX audio: tune mark/space to 2125/2295 Hz'", fftsize=1024,
+              name="'RX audio (RTTY: 2125/2295 Hz, CW: pitch)'", fftsize=1024,
               freqhalf="False", fc=0, bw="samp_rate/8", int_min=-110, int_max=-30,
               update_time=0.10, grid="True", legend="True", axislabels="True",
               showports="False", gui_hint="4,0,1,2"),
@@ -203,6 +213,7 @@ def build():
     next(b for b in blocks if b["name"] == "rtty_mod")["states"]["_io_cache"] = repr(tuple(rtty_io))
     next(b for b in blocks if b["name"] == "console")["states"]["_io_cache"] = repr(tuple(router_io))
     next(b for b in blocks if b["name"] == "rtty_demod")["states"]["_io_cache"] = repr(tuple(demod_io))
+    next(b for b in blocks if b["name"] == "cw_decoder")["states"]["_io_cache"] = repr(tuple(cwdec_io))
 
     fg = {
         "options": {
@@ -221,7 +232,10 @@ def build():
             ["console", "display", "console_out", "in"],
             ["icom_ptt", "status", "console", "status"],
             ["rtty_mod", "info", "console", "info"],
-            ["rtty_demod", "text", "console", "rx"],
+            ["rtty_demod", "text", "console", "rx_rtty"],
+            ["cw_decoder", "text", "console", "rx_cw"],
+            ["icom_ptt", "status", "cw_decoder", "status"],
+            ["audio_in", "0", "cw_decoder", "0"],
             ["icom_ptt", "status", "rtty_demod", "status"],
             ["audio_in", "0", "rtty_demod", "0"],
             ["audio_in", "0", "rx_decim", "0"],
