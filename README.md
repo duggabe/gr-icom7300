@@ -71,8 +71,11 @@ python3 icom_civ.py --port ... usbmod          # read USB MOD Level; 'usbmod 45'
 ## GNU Radio
 
 Open `icom_tx_demo.grc` from this directory, so the generated block can import
-`icom_civ.py`. Otherwise set the block's `lib_dir`. Then set the `serial_port`,
-`radio_addr` and `audio_dev` variables and replace the test tone with your modulator.
+`icom_civ.py`. Otherwise set the block's `lib_dir`. Check the `radio_addr` and `audio_dev`
+variables and replace the test tone with your modulator. `serial_port` finds the first
+IC-7300MK2 CI-V port (`/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_*-if00`) when the flowgraph
+starts and falls back to `/dev/ttyACM0`. For an original IC-7300, or to pick one radio, set
+it to a fixed path from `ls -l /dev/serial/by-id/`.
 
 Block **Icom CI-V PTT**:
 

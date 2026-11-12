@@ -30,6 +30,18 @@ options:
     rotation: 0
     state: enabled
 blocks:
+- name: import_glob
+  id: import
+  parameters:
+    imports: import glob
+    alias: ''
+    comment: ''
+  states:
+    coordinate:
+    - 200
+    - 100
+    rotation: 0
+    state: enabled
 - name: audio_dev
   id: variable
   parameters:
@@ -123,8 +135,8 @@ blocks:
 - name: serial_port
   id: variable
   parameters:
-    comment: "ls -l /dev/serial/by-id/  \n(MK2: CI-V is the -if00 port)"
-    value: '''/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_IC-7300MK2_<serial>-if00'''
+    comment: 'First IC-7300MK2 CI-V port (-if00), else /dev/ttyACM0. Or set a fixed path: ls -l /dev/serial/by-id/'
+    value: (sorted(glob.glob('/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_*-if00')) or ['/dev/ttyACM0'])[0]
   states:
     bus_sink: false
     bus_source: false
