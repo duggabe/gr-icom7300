@@ -6,8 +6,10 @@ Message inputs:
   status - connect to the Icom CI-V PTT block's status output. Decoding pauses while
            the radio is not in RX, and for holdoff_s after it returns to RX.
 Message outputs:
-  text   - received text, one display line per message (connect to the Console
-           Router's rx input).
+  text    - received text, one display line per message (connect to the Console
+            Router's rx_rtty input).
+  preview - the last preview_chars received characters (line breaks as spaces), sent
+            as each character arrives (connect to a QT GUI Message Edit Box's val input).
 
 Radio: LSB-D, tuned so the signal's mark/space fall on 2125/2295 Hz. Tick reverse for an
 inverted signal. Needs rtty.py next to the .grc file (or set lib_dir).
@@ -30,17 +32,20 @@ class blk(gr.sync_block):
     usos: unshift to letters on space
     line_width: wrap received text at this many characters
     holdoff_s: keep decoding paused this long after the radio returns to RX
+    preview_chars: length of the scrolling preview (0 = no preview messages)
     """
 
     def __init__(self, samp_rate=48000, baud=45.45, mark_hz=2125.0, space_hz=2295.0,
                  reverse=False, squelch=0.6, usos=True, line_width=64, holdoff_s=0.5,
-                 lib_dir=''):
+                 preview_chars=80, lib_dir=''):
         gr.sync_block.__init__(self, name='RTTY Demod', in_sig=[np.float32], out_sig=None)
         self._cfg = dict(samp_rate=float(samp_rate), baud=float(baud), mark=float(mark_hz),
                          space=float(space_hz), squelch=float(squelch), usos=bool(usos),
                          width=int(line_width), lib_dir=lib_dir)
         self._reverse = bool(reverse)
         self._holdoff = float(holdoff_s)
+        self._preview_chars = int(preview_chars)
+        self._preview = ""
         self._demod = None
         self._lines = None
         self._rx = True
@@ -49,6 +54,7 @@ class blk(gr.sync_block):
         self.message_port_register_in(pmt.intern('status'))
         self.set_msg_handler(pmt.intern('status'), self._handle_status)
         self.message_port_register_out(pmt.intern('text'))
+        self.message_port_register_out(pmt.intern('preview'))
 
     @property
     def reverse(self):
@@ -88,6 +94,7 @@ class blk(gr.sync_block):
     def work(self, input_items, output_items):
         audio = input_items[0]
         now = time.monotonic()
+        text = ""
         with self._lock:
             if self._demod is None:
                 return len(audio)
@@ -95,6 +102,12 @@ class blk(gr.sync_block):
                 self._demod.reset()            # own transmission: nothing to decode
                 lines = self._lines.poll(now + self._lines.idle)   # flush what we had
             else:
-                lines = self._lines.feed(self._demod.receive(audio), now) + self._lines.poll(now)
+                text = self._demod.receive(audio)
+                lines = self._lines.feed(text, now) + self._lines.poll(now)
         self._publish(lines)
+        if text and self._preview_chars > 0:
+            chars = text.replace("\r", "").replace("\n", " ")
+            if chars:
+                self._preview = (self._preview + chars)[-self._preview_chars:]
+                self.message_port_pub(pmt.intern('preview'), pmt.intern(self._preview))
         return len(audio)

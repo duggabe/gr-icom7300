@@ -3,9 +3,9 @@
 cw_demod_epy.py and console_router_epy.py embedded as Embedded Python Blocks.
 
 Two modes:
-    python3 tools/make_grc.py [--with-rx]     build the demo .grc from scratch
+    python3 tools/make_grc.py [--with-cw-rx]  build the demo .grc from scratch
                                               (overwrites it: any GRC edits are lost);
-                                              --with-rx adds the receive blocks
+                                              --with-cw-rx adds the CW Decoder
     python3 tools/make_grc.py --update-code [FILE.grc]
                                               copy the current block files
                                               (see BLOCK_FILES) into the Embedded Python
@@ -28,10 +28,11 @@ Demo flowgraph:
                                [Console Router] -> rtty -> [RTTY AFSK Mod] -> ptt -> [Icom CI-V PTT]
     gr-webserver <- ZMQ PUB <- [Console Router] <- notices (PTT block, RTTY Mod)
     [Console Router] -> radio -> [Icom CI-V PTT]   (/cw: set up the radio's CW DECODE screen)
-  --with-rx only (received text is otherwise read on the radio's DECODE screens):
     Audio Source (radio USB codec) -> [RTTY Demod] -> text -> [Console Router] rx_rtty
-                                   -> [CW Decoder] -> text -> [Console Router] rx_cw
+                                                    -> preview -> RTTY RX box (scrolling)
                                    -> Resampler /8 -> Waterfall (tuning, 0-3 kHz)
+                                   -> [CW Decoder] -> text -> [Console Router] rx_cw
+                                      (--with-cw-rx only; CW is read on the radio's screen)
 """
 
 import argparse
@@ -110,15 +111,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--update-code", nargs="?", const=os.path.join(ROOT, "icom_tx_demo.grc"),
                     metavar="FILE.grc", help="update embedded block code in an existing .grc")
-    ap.add_argument("--with-rx", action="store_true",
-                    help="build with the flowgraph's RTTY Demod, CW Decoder and RX waterfall")
+    ap.add_argument("--with-cw-rx", action="store_true",
+                    help="also build the flowgraph's CW Decoder (CW is normally read on the "
+                         "radio's CW DECODE screen)")
     args = ap.parse_args()
     if args.update_code:
         sys.exit(update_code(args.update_code))
-    build(args.with_rx)
+    build(args.with_cw_rx)
 
 
-def build(with_rx=False):
+def build(with_cw_rx=False):
     from gnuradio.grc.core.utils import epy_block_io
 
     src = open(os.path.join(ROOT, "icom_ptt_epy.py")).read()
@@ -142,7 +144,7 @@ def build(with_rx=False):
         block("audio_dev", "variable", (620, 12), value="'plughw:CARD=Device,DEV=0'",
               comment="aplay -L  (MK2 codec shows as C-Media USB Audio Device)"),
         # GUI rows: 0 PTT | status   1 USB MOD | tone Hz   2 tone on | CW WPM
-        #           (--with-rx: 3 RX reverse   4 waterfall)
+        #           3 RX reverse   4 RTTY RX preview   5 waterfall
         # (text in and out goes through the gr-webserver browser console)
         block("ptt", "variable_qtgui_toggle_button_msg", (16, 120), label="PTT", type="bool",
               value="False", pressed="True", released="False", initPressed="False",
@@ -190,11 +192,8 @@ def build(with_rx=False):
         block("audio_out", "audio_sink", (1040, 600), samp_rate="samp_rate",
               device_name="audio_dev", ok_to_block="True", num_inputs=1),
     ]
-    # receive (--with-rx): the radio's own CW/RTTY DECODE screens are used instead
+    # RTTY receive: the radio's RTTY DECODE screen needs RTTY mode, but we transmit AFSK in LSB-D
     rx_blocks = [
-        block("cw_pitch", "variable", (780, 12), value=600,
-              comment="Radio CW Pitch (FUNCTION > CW pitch knob, or MENU); the CW decoder "
-                      "follows tones within 150 Hz of it"),
         block("rx_reverse", "variable_qtgui_check_box", (16, 1000), label="RX Reverse",
               type="bool", value="False", **{"true": "True", "false": "False"},
               gui_hint="3,0,1,1"),
@@ -205,32 +204,46 @@ def build(with_rx=False):
         block("rtty_demod", "epy_block", (420, 1100), _source_code=demod_src,
               samp_rate="samp_rate", baud=45.45, mark_hz=2125.0, space_hz=2295.0,
               reverse="rx_reverse", squelch=0.6, usos="True", line_width=64,
-              holdoff_s=0.5, lib_dir="''"),
-        block("cw_decoder", "epy_block", (420, 1180), _source_code=cwdec_src,
-              samp_rate="samp_rate", pitch_hz="cw_pitch", afc_hz=150.0, wpm="cw_wpm",
-              squelch=6.5, line_width=64, holdoff_s=0.5, lib_dir="''"),
+              holdoff_s=0.5, preview_chars=80, lib_dir="''"),
         block("rx_decim", "rational_resampler_xxx", (420, 1260), type="fff", interp=1,
               decim=8, taps="[]", fbw=0),
         block("rx_waterfall", "qtgui_waterfall_sink_x", (700, 1260), type="float",
               name="'RX audio (RTTY: 2125/2295 Hz, CW: pitch)'", fftsize=1024,
               freqhalf="False", fc=0, bw="samp_rate/8", int_min=-110, int_max=-30,
               update_time=0.10, grid="True", legend="True", axislabels="True",
-              showports="False", gui_hint="4,0,1,2"),
+              showports="False", gui_hint="5,0,1,2"),
+        block("rx_preview", "qtgui_edit_box_msg", (900, 1100), type="string", value="''",
+              label="'RTTY RX'", is_pair="False", is_static="False", key="''",
+              gui_hint="4,0,1,2",
+              comment="Scrolling preview: the last 80 received RTTY characters as they "
+                      "arrive. Whole lines also go to the gr-webserver console."),
+    ]
+    # CW receive (--with-cw-rx): the radio's own CW DECODE screen is used instead
+    cw_rx_blocks = [
+        block("cw_pitch", "variable", (780, 12), value=600,
+              comment="Radio CW Pitch (FUNCTION > CW pitch knob, or MENU); the CW decoder "
+                      "follows tones within 150 Hz of it"),
+        block("cw_decoder", "epy_block", (420, 1180), _source_code=cwdec_src,
+              samp_rate="samp_rate", pitch_hz="cw_pitch", afc_hz=150.0, wpm="cw_wpm",
+              squelch=6.5, line_width=64, holdoff_s=0.5, lib_dir="''"),
     ]
     next(b for b in blocks if b["name"] == "icom_ptt")["states"]["_io_cache"] = repr(tuple(io))
     next(b for b in blocks if b["name"] == "rtty_mod")["states"]["_io_cache"] = repr(tuple(rtty_io))
     next(b for b in blocks if b["name"] == "console")["states"]["_io_cache"] = repr(tuple(router_io))
     next(b for b in rx_blocks if b["name"] == "rtty_demod")["states"]["_io_cache"] = repr(tuple(demod_io))
-    next(b for b in rx_blocks if b["name"] == "cw_decoder")["states"]["_io_cache"] = repr(tuple(cwdec_io))
+    next(b for b in cw_rx_blocks if b["name"] == "cw_decoder")["states"]["_io_cache"] = repr(tuple(cwdec_io))
     rx_connections = [
         ["rtty_demod", "text", "console", "rx_rtty"],
-        ["cw_decoder", "text", "console", "rx_cw"],
-        ["icom_ptt", "status", "cw_decoder", "status"],
-        ["audio_in", "0", "cw_decoder", "0"],
+        ["rtty_demod", "preview", "rx_preview", "val"],
         ["icom_ptt", "status", "rtty_demod", "status"],
         ["audio_in", "0", "rtty_demod", "0"],
         ["audio_in", "0", "rx_decim", "0"],
         ["rx_decim", "0", "rx_waterfall", "0"],
+    ]
+    cw_rx_connections = [
+        ["cw_decoder", "text", "console", "rx_cw"],
+        ["icom_ptt", "status", "cw_decoder", "status"],
+        ["audio_in", "0", "cw_decoder", "0"],
     ]
 
     fg = {
@@ -241,7 +254,7 @@ def build(with_rx=False):
                            "window_size": "(600,300)", "placement": "(0,0)"},
             "states": {"coordinate": [16, 12], "rotation": 0, "state": "enabled"},
         },
-        "blocks": blocks + (rx_blocks if with_rx else []),
+        "blocks": blocks + rx_blocks + (cw_rx_blocks if with_cw_rx else []),
         "connections": [
             ["ptt", "state", "icom_ptt", "ptt"],
             ["console_in", "out", "console", "in"],
@@ -263,8 +276,7 @@ def build(with_rx=False):
         ],
         "metadata": {"file_format": 1, "grc_version": "3.10.12.0"},
     }
-    if with_rx:
-        fg["connections"] += rx_connections
+    fg["connections"] += rx_connections + (cw_rx_connections if with_cw_rx else [])
     out = os.path.join(ROOT, "icom_tx_demo.grc")
     with open(out, "w") as f:
         yaml.safe_dump(fg, f, sort_keys=False, width=100)

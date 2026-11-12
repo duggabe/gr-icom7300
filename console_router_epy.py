@@ -9,8 +9,8 @@ Connect:
   radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the radio's CW decoder)
   rtty -> RTTY AFSK Mod's text input
   Icom CI-V PTT status -> status,  Icom CI-V PTT info and RTTY AFSK Mod info -> info
-  optional: RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw (the demo leaves these
-  unconnected and received text is read on the radio's DECODE screen)
+  RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw (optional: the demo reads CW on
+  the radio's CW DECODE screen and leaves rx_cw unconnected)
 
 Each line typed in the console is sent in the current mode. Commands:
   /cw  /rtty   switch mode; CW is the default (/cw, and starting in CW, also puts the radio in CW mode, ready for its CW DECODE screen)

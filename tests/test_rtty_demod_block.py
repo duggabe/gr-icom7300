@@ -32,13 +32,15 @@ def load():
 
 @unittest.skipIf(gr is None, "GNU Radio not available")
 class TestDemodBlock(unittest.TestCase):
-    def run_graph(self, audio, status=None, reverse=False):
+    def run_graph(self, audio, status=None, reverse=False, **kw):
         tb = gr.top_block()
         src = blocks.vector_source_f(audio.astype(np.float32).tolist(), False)
-        demod = load().blk(samp_rate=FS, reverse=reverse)
+        demod = load().blk(samp_rate=FS, reverse=reverse, **kw)
         dbg = blocks.message_debug()
+        self.preview = blocks.message_debug()
         tb.connect(src, demod)
         tb.msg_connect(demod, "text", dbg, "store")
+        tb.msg_connect(demod, "preview", self.preview, "store")
         if status:
             demod.to_basic_block()._post(pmt.intern("status"), pmt.intern(status))
         tb.start()
@@ -58,6 +60,15 @@ class TestDemodBlock(unittest.TestCase):
     def test_paused_while_transmitting(self):
         _, dbg = self.run_graph(burst("\r\nCQ CQ DE N0CALL\r\n"), status="TX")
         self.assertEqual(self.lines(dbg), [])
+        self.assertEqual(self.lines(self.preview), [])
+
+    def test_preview_scrolls(self):
+        _, dbg = self.run_graph(burst("\r\nCQ CQ DE N0CALL\r\nPSE K\r\n"), preview_chars=12)
+        previews = self.lines(self.preview)
+        self.assertGreater(len(previews), 3)                  # updated as characters arrive
+        self.assertTrue(all(len(p) <= 12 for p in previews))
+        self.assertEqual(previews[-1], "0CALL PSE K ")       # line breaks as spaces
+        self.assertEqual(self.lines(dbg), ["CQ CQ DE N0CALL", "PSE K"])
 
     def test_reverse_property(self):
         demod = load().blk(samp_rate=FS)
