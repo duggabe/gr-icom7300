@@ -189,8 +189,7 @@ Text in and out goes through [gr-webserver](https://github.com/duggabe/gr-webser
 terminal-style browser page, instead of QT GUI Message Edit Boxes. The demo uses gr-webserver
 v2.1 (ZMQ PUB/SUB): a ZMQ SUB Message Source on `tcp://127.0.0.1:50251` (bind off) feeds the
 **Console Router**, and a ZMQ PUB Message Sink on `tcp://127.0.0.1:50252` (bind on) carries its
-display lines back. For gr-webserver v1.0.16, replace them with ZMQ PULL Message Source and
-ZMQ PUSH Message Sink blocks (same addresses and bind settings).
+display lines back.
 
 1. Start gr-webserver in its own terminal: `cd ~/gr-webserver && node index.js`. A browser
    tab opens.

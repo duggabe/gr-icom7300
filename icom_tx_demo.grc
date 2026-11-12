@@ -339,8 +339,7 @@ blocks:
     affinity: ''
     alias: ''
     bind: 'False'
-    comment: "Text typed in gr-webserver \n(v2.1, PUB/SUB). For v1.0.16 \nuse a ZMQ PULL Message \nSource\
-      \ instead."
+    comment: "Text typed in gr-webserver \n(v2.1, PUB/SUB)."
     maxoutbuf: '0'
     minoutbuf: '0'
     timeout: '100'
@@ -360,7 +359,7 @@ blocks:
     affinity: ''
     alias: ''
     bind: 'True'
-    comment: Lines shown in gr-webserver. For v1.0.16 use a ZMQ PUSH Message Sink instead.
+    comment: Lines shown in gr-webserver.
     timeout: '100'
   states:
     bus_sink: false
