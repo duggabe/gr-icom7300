@@ -16,12 +16,12 @@ Not designed for voice.
 | `icom_ptt_epy.py` | Source of the GNU Radio Embedded Python Block (message ports only). |
 | `rtty.py` | RTTY modulator (Baudot encoder, phase-continuous AFSK, PTT coordination) and demodulator (mark/space filters, UART, Baudot decode). No GNU Radio dependency. |
 | `rtty_mod_epy.py` | Source of the RTTY AFSK Mod Embedded Python Block (float audio out). |
-| `rtty_demod_epy.py` | Source of the RTTY Demod Embedded Python Block (float audio in, text lines out). |
+| `rtty_demod_epy.py` | Source of the RTTY Demod Embedded Python Block (float audio in, text lines out). Not in the demo flowgraph (see "Receive"). |
 | `cw_rx.py` | CW decoder: tone filter with AFC, keying detector with squelch, adaptive speed, Morse table. No GNU Radio dependency. |
-| `cw_demod_epy.py` | Source of the CW Decoder Embedded Python Block (float audio in, text lines out). |
+| `cw_demod_epy.py` | Source of the CW Decoder Embedded Python Block (float audio in, text lines out). Not in the demo flowgraph (see "Receive"). |
 | `console_router_epy.py` | Source of the Console Router Embedded Python Block: connects the gr-webserver browser console to CW and RTTY and shows radio status there. |
-| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio; radio USB audio → RTTY Demod and CW Decoder → console, plus a tuning waterfall and RX Reverse checkbox. |
-| `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
+| `icom_tx_demo.grc` | Demo flowgraph: PTT button, WPM and USB MOD Level sliders, status, gr-webserver console for CW and RTTY text, test tone + RTTY → Mute → radio USB audio. Transmit only: received text is read on the radio's own DECODE screen. |
+| `tools/make_grc.py` | Builds `icom_tx_demo.grc` from scratch (overwrites it; `--with-rx` adds the receive blocks), or with `--update-code [FILE.grc]` copies the current block code into an existing flowgraph and keeps your GRC edits. See "Changing the flowgraph". |
 | `tests/` | Tests against a simulated radio, including a pty-based GNU Radio end-to-end test. |
 
 ## Radio setup (MENU › SET › Connectors)
@@ -104,7 +104,13 @@ to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are ski
 - The RTTY amplitude (0.3) matches the test tone, so the USB MOD Level set with the tone
   carries over.
 
-### Receive
+### Receive (not in the demo flowgraph)
+
+Received text is read on the radio's own DECODE screens, which show each character as it
+arrives (no line buffering), so you can listen and read at the same time. The flowgraph's
+receive blocks are kept in the repo and tested; `python3 tools/make_grc.py --with-rx` builds
+a demo with them (RTTY Demod, CW Decoder, an Audio Source, a tuning waterfall and RX Reverse),
+connected to the Console Router's `rx_rtty` and `rx_cw` inputs.
 
 Block **RTTY Demod** decodes the radio's USB audio (an Audio Source on the same codec) and
 sends each received line to the console.
@@ -128,7 +134,8 @@ sends each received line to the console.
 
 ## CW receive
 
-Block **CW Decoder** decodes the radio's USB audio in CW mode and sends each received line
+The demo uses the radio's own CW decoder (next section). Block **CW Decoder** (`--with-rx`
+only) decodes the radio's USB audio in CW mode and sends each received line
 to the console (shown in console mode CW, `/cw`).
 
 - Radio: CW mode, USB AF/IF Output as for RTTY receive. Set the flowgraph's `cw_pitch`
@@ -169,8 +176,8 @@ Notes:
   RTTY.
 - The 0264 change stays after the flowgraph stops. To get the Select screen back, set
   "CW [KEYER/DECODE] Key" to `Select screen` (this radio's setting before the change).
-- The flowgraph's CW Decoder keeps running as well, so both decoders can be compared.
-  Remove the `cw_decoder` → `console rx_cw` connection to show only the radio's.
+- Verified 2026-11-12: starting the flowgraph sets the radio to CW, and MENU › KEYER/DECODE
+  opens CW DECODE, which decoded a live station.
 
 ## Text console (gr-webserver)
 
@@ -193,10 +200,12 @@ ZMQ PUSH Message Sink blocks (same addresses and bind settings).
 | `/stop` or an empty line | abort the CW or RTTY transmission in progress |
 | `/help` | list the commands |
 
-Received text appears as it is, for the current mode only: RTTY in `/rtty`, CW in `/cw`. The router's own lines start with `* `: `* TX`,
-`* TX (CW keyer)`, `* RX`, errors from the PTT block, and RTTY notices such as skipped
-characters. A received line appears when it ends, reaches 64 characters, or after 2 s
-without new characters. gr-webserver keeps the last 20 lines. Its one-byte length field
+The console is for transmitting: it shows no received text (read that on the radio's DECODE
+screen). The router's own lines start with `* `: `* TX`, `* TX (CW keyer)`, `* RX`, errors
+from the PTT block, radio setup notices, and RTTY notices such as skipped characters. With a
+`--with-rx` flowgraph, received text also appears, for the current mode only; a line appears
+when it ends, reaches 64 characters, or after 2 s without new characters. gr-webserver keeps
+the last 20 lines. Its one-byte length field
 limits a line to 255 ASCII characters.
 
 ## Tests
