@@ -41,6 +41,7 @@ SUB_READ_ID = 0x00
 CMD_SEND_CW = 0x17          # data: up to 30 chars; 0xFF = stop sending
 CW_STOP = 0xFF
 CW_MAX_CHUNK = 30
+CMD_READ_MODE = 0x04        # reply: mode, filter (1-3)
 CMD_SET_MODE = 0x06         # data: mode, filter (1-3)
 CMD_LEVEL = 0x14
 SUB_KEY_SPEED = 0x0C        # 0000-0255 BCD -> 6-48 WPM
@@ -50,6 +51,8 @@ CMD_EXT = 0x1A
 SUB_DATA_MODE = 0x06        # data: 00/01 (off/on), filter (00 when off, else 1-3)
 SUB_MENU = 0x05             # 1A 05 <item, 4-digit BCD> [data]: SET menu items
 MENU_USB_MOD_LEVEL = 81     # IC-7300MK2 (verified on hardware); level 0000-0255 = 0-100%
+MENU_KEYER_DECODE_KEY = 264 # IC-7300MK2 MENU SET: CW [KEYER/DECODE] key behaviour
+KEYER_DECODE_KEY = {"SELECT": 0x00, "KEYER": 0x01, "DECODE": 0x02}
 
 MODES = {"LSB": 0x00, "USB": 0x01, "AM": 0x02, "CW": 0x03, "RTTY": 0x04,
          "FM": 0x05, "CW-R": 0x07, "RTTY-R": 0x08}
@@ -426,6 +429,18 @@ class CivPort:
         """Set USB MOD Level (0-100 %); returns the value the radio now reports."""
         self.write_menu(MENU_USB_MOD_LEVEL, bcd4(percent_to_level(pct)))
         return self.get_usb_mod_level()
+
+    def get_mode(self) -> tuple[str, int]:
+        """Operating mode name (a MODES key) and filter number (1-3)."""
+        p = self.transact(bytes([CMD_READ_MODE]), expect=bytes([CMD_READ_MODE])).payload
+        names = {v: k for k, v in MODES.items()}
+        if len(p) < 3 or p[1] not in names:
+            raise CivError(f"unexpected mode reply {p.hex(' ')}")
+        return names[p[1]], p[2]
+
+    def set_keyer_decode_key(self, action: str) -> None:
+        """What touching [KEYER/DECODE] in the CW MENU screen opens: SELECT, KEYER or DECODE."""
+        self.write_menu(MENU_KEYER_DECODE_KEY, bytes([KEYER_DECODE_KEY[action.upper()]]))
 
     def set_mode(self, mode: str, data: bool = False, filt: int = 1) -> None:
         """Set mode and filter (1-3), and the DATA (-D) flag, e.g. set_mode('USB', data=True)."""

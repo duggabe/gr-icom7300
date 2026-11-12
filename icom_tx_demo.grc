@@ -1,207 +1,599 @@
 options:
   parameters:
-    id: icom_tx_demo
-    title: Icom IC-7300 TX demo
-    generate_options: qt_gui
-    output_language: python
-    run: 'True'
-    run_options: prompt
+    alias: ''
+    author: null
     catch_exceptions: 'True'
-    window_size: (600,300)
-    placement: (0,0)
+    comment: ''
+    copyright: null
+    description: null
+    gen_linking: dynamic
+    generate_options: qt_gui
+    generator_class_name: PythonQtGuiGenerator
+    generator_module: gnuradio.grc.workflows.python_qt_gui
+    hier_block_src_path: null
+    id: icom_tx_demo
+    max_nouts: '0'
+    output_language: python
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    thread_safe_setters: ''
+    title: Icom IC-7300 TX demo
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 16
-    - 12
+    - 24
+    - 20.0
     rotation: 0
     state: enabled
 blocks:
-- name: samp_rate
+- name: audio_dev
   id: variable
   parameters:
-    value: '48000'
+    comment: "aplay -L  (MK2 codec shows as \nC-Media USB Audio Device)"
+    value: '''plughw:CARD=Device,DEV=0'''
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 200
-    - 12
-    rotation: 0
-    state: enabled
-- name: serial_port
-  id: variable
-  parameters:
-    value: '''/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_IC-7300MK2_<serial>-if00'''
-    comment: 'ls -l /dev/serial/by-id/  (MK2: CI-V is the -if00 port)'
-  states:
-    coordinate:
-    - 320
-    - 12
-    rotation: 0
-    state: enabled
-- name: radio_addr
-  id: variable
-  parameters:
-    value: '0xB6'
-    comment: MENU > SET > Connectors > CI-V > CI-V Address
-  states:
-    coordinate:
-    - 480
-    - 12
+    - 640
+    - 24.0
     rotation: 0
     state: enabled
 - name: cw_pitch
   id: variable
   parameters:
+    comment: "Radio CW Pitch \n(FUNCTION > \nCW pitch knob, or MENU); \nthe CW decoder follows \ntones\
+      \ within 150 Hz of it"
     value: '600'
-    comment: Radio CW Pitch (FUNCTION > CW pitch knob, or MENU); the CW decoder follows tones within 150
-      Hz of it
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 780
-    - 12
-    rotation: 0
-    state: enabled
-- name: audio_dev
-  id: variable
-  parameters:
-    value: '''plughw:CARD=Device,DEV=0'''
-    comment: aplay -L  (MK2 codec shows as C-Media USB Audio Device)
-  states:
-    coordinate:
-    - 620
-    - 12
-    rotation: 0
-    state: enabled
-- name: ptt
-  id: variable_qtgui_toggle_button_msg
-  parameters:
-    label: PTT
-    type: bool
-    value: 'False'
-    pressed: 'True'
-    released: 'False'
-    initPressed: 'False'
-    outputmsgname: value
-    pressBackgroundColor: red
-    pressFontColor: white
-    gui_hint: 0,0,1,1
-  states:
-    coordinate:
-    - 16
-    - 120
-    rotation: 0
-    state: enabled
-- name: status_box
-  id: qtgui_edit_box_msg
-  parameters:
-    type: string
-    value: '''RX'''
-    label: '''Status'''
-    is_pair: 'False'
-    is_static: 'False'
-    key: ''''''
-    gui_hint: 0,1,1,1
-  states:
-    coordinate:
-    - 900
-    - 300
-    rotation: 0
-    state: enabled
-- name: usb_mod_level
-  id: variable_qtgui_range
-  parameters:
-    label: USB MOD Level %
-    rangeType: int
-    value: '50'
-    start: '0'
-    stop: '100'
-    step: '1'
-    widget: counter_slider
-    gui_hint: 1,0,1,1
-    comment: Sent to the radio on start and when moved. Adjust while the test tone transmits until ALC
-      barely moves.
-  states:
-    coordinate:
-    - 16
-    - 600
-    rotation: 0
-    state: enabled
-- name: tone_freq
-  id: variable_qtgui_range
-  parameters:
-    label: Test tone Hz
-    rangeType: float
-    value: '1500'
-    start: '300'
-    stop: '2700'
-    step: '10'
-    widget: counter_slider
-    gui_hint: 1,1,1,1
-  states:
-    coordinate:
-    - 16
-    - 360
-    rotation: 0
-    state: enabled
-- name: tone_on
-  id: variable_qtgui_check_box
-  parameters:
-    label: Test tone
-    type: bool
-    value: 'False'
-    'true': 'True'
-    'false': 'False'
-    gui_hint: 2,0,1,1
-  states:
-    coordinate:
-    - 16
-    - 720
+    - 824
+    - 24.0
     rotation: 0
     state: enabled
 - name: cw_wpm
   id: variable_qtgui_range
   parameters:
-    label: CW WPM
-    rangeType: int
-    value: '20'
-    start: '6'
-    stop: '48'
-    step: '1'
-    widget: counter_slider
+    comment: ''
     gui_hint: 2,1,1,1
+    label: CW WPM
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '6'
+    step: '1'
+    stop: '48'
+    value: '13'
+    widget: counter_slider
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 16
-    - 240
+    - 24
+    - 192.0
+    rotation: 0
+    state: enabled
+- name: ptt
+  id: variable_qtgui_toggle_button_msg
+  parameters:
+    comment: ''
+    gui_hint: 0,0,1,1
+    initPressed: 'False'
+    label: PTT
+    outputmsgname: value
+    pressBackgroundColor: red
+    pressFontColor: white
+    pressed: 'True'
+    relBackgroundColor: default
+    relFontColor: default
+    released: 'False'
+    type: bool
+    value: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 128
+    - 368.0
+    rotation: 0
+    state: enabled
+- name: radio_addr
+  id: variable
+  parameters:
+    comment: "MENU > SET > Connectors > \nCI-V > CI-V Address"
+    value: '0xB6'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 472
+    - 24.0
     rotation: 0
     state: enabled
 - name: rx_reverse
   id: variable_qtgui_check_box
   parameters:
-    label: RX Reverse
-    type: bool
-    value: 'False'
-    'true': 'True'
+    comment: ''
     'false': 'False'
     gui_hint: 3,0,1,1
+    label: RX Reverse
+    'true': 'True'
+    type: bool
+    value: 'False'
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 16
-    - 1000
+    - 1272
+    - 24.0
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '48000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 192
+    - 24.0
+    rotation: 0
+    state: enabled
+- name: serial_port
+  id: variable
+  parameters:
+    comment: "ls -l /dev/serial/by-id/  \n(MK2: CI-V is the -if00 port)"
+    value: '''/dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_IC-7300MK2_<serial>-if00'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 296
+    - 24.0
+    rotation: 0
+    state: enabled
+- name: tone_freq
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: 1,1,1,1
+    label: Test tone Hz
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '300'
+    step: '10'
+    stop: '2700'
+    value: '1500'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 136
+    - 192.0
+    rotation: 0
+    state: enabled
+- name: tone_on
+  id: variable_qtgui_check_box
+  parameters:
+    comment: ''
+    'false': 'False'
+    gui_hint: 2,0,1,1
+    label: Test tone
+    'true': 'True'
+    type: bool
+    value: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1144
+    - 24.0
+    rotation: 0
+    state: enabled
+- name: usb_mod_level
+  id: variable_qtgui_range
+  parameters:
+    comment: "Sent to the radio on start \nand when moved. Adjust \nwhile the test tone transmits \nuntil\
+      \ ALC barely moves."
+    gui_hint: 1,0,1,1
+    label: USB MOD Level %
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '100'
+    value: '30'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 992
+    - 24.0
     rotation: 0
     state: enabled
 - name: audio_in
   id: audio_source
   parameters:
-    samp_rate: samp_rate
+    affinity: ''
+    alias: ''
+    comment: "Radio RX audio: SET > Connectors > \nUSB AF/IF Output (Output Select AF, \nAF Output Level,\
+      \ AF SQL)"
     device_name: audio_dev
-    ok_to_block: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
     num_outputs: '1'
-    comment: 'Radio RX audio: SET > Connectors > USB AF/IF Output (Output Select AF, AF Output Level,
-      AF SQL)'
+    ok_to_block: 'True'
+    samp_rate: samp_rate
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
     - 16
     - 1100
+    rotation: 0
+    state: enabled
+- name: audio_out
+  id: audio_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    device_name: audio_dev
+    num_inputs: '1'
+    ok_to_block: 'True'
+    samp_rate: samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1040
+    - 600
+    rotation: 0
+    state: enabled
+- name: audio_sum
+  id: blocks_add_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '1024'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 700
+    - 600
+    rotation: 0
+    state: enabled
+- name: console
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nConsole router (Embedded Python Block) for gr-webserver\n(https://github.com/duggabe/gr-webserver,\
+      \ v2.1: ZMQ PUB/SUB).\n\nConnect:\n  ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False)\
+      \ -> in\n  display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)\n  cw   -> Icom CI-V\
+      \ PTT block's cw input\n  radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the\
+      \ radio's CW decoder)\n  rtty -> RTTY AFSK Mod's text input\n  Icom CI-V PTT status -> status, \
+      \ Icom CI-V PTT info and RTTY AFSK Mod info -> info\n  RTTY Demod text -> rx_rtty,  CW Decoder text\
+      \ -> rx_cw\n\nEach line typed in the console is sent in the current mode. Commands:\n  /cw  /rtty\
+      \   switch mode; CW is the default (/cw, and starting in CW, also puts the radio in CW mode, ready\
+      \ for its CW DECODE screen)\n  /stop        abort the current CW or RTTY transmission (an empty\
+      \ line does the same)\n  /help        list the commands\nThe console shows received text for the\
+      \ current mode (RTTY in RTTY mode, CW in CW mode)\nas it is, and radio state changes (TX / RX),\
+      \ errors and notices with a \"* \" in front.\n\"\"\"\n\nimport threading\n\nimport pmt\nfrom gnuradio\
+      \ import gr\n\nMODES = (\"RTTY\", \"CW\")\nHELP = [\"Type a line and press Enter to send it in the\
+      \ current mode.\",\n        \"/rtty or /cw: switch mode.  /stop or empty line: abort.  /help: this\
+      \ list.\"]\nQUIET_STATES = (\"LEAD\", \"TAIL\")     # brief PTT sequencing states, not worth showing\n\
+      \n\ndef _text(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:\n\
+      \        v = v[1]\n    if isinstance(v, (bytes, bytearray)):\n        v = bytes(v).decode(\"utf-8\"\
+      , \"replace\")\n    return v if isinstance(v, str) else str(v)\n\n\nclass blk(gr.basic_block):\n\
+      \    \"\"\"Routes gr-webserver console lines to CW or RTTY and shows radio status.\n\n    mode:\
+      \ 'CW' or 'RTTY' at start (CW also sets the radio up, as /cw does); change it from\n          the\
+      \ console with /cw or /rtty.\n    \"\"\"\n\n    def __init__(self, mode='CW'):\n        gr.basic_block.__init__(self,\
+      \ name='Console Router', in_sig=None, out_sig=None)\n        m = str(mode).upper()\n        self._mode\
+      \ = m if m in MODES else MODES[0]\n        self._state = None\n        self._error = None\n    \
+      \    self._greet = threading.Timer(0, lambda: None)\n        self._switched = False          # /cw\
+      \ or /rtty typed since start\n        for port, handler in ((\"in\", self._handle_in), (\"status\"\
+      , self._handle_status),\n                              (\"info\", self._handle_info), (\"rx_rtty\"\
+      , self._handle_rx_rtty),\n                              (\"rx_cw\", self._handle_rx_cw)):\n    \
+      \        self.message_port_register_in(pmt.intern(port))\n            self.set_msg_handler(pmt.intern(port),\
+      \ handler)\n        for port in (\"display\", \"cw\", \"rtty\", \"radio\"):\n            self.message_port_register_out(pmt.intern(port))\n\
+      \n    def start(self):\n        # delayed: ZMQ PUB drops messages until the console's SUB socket\
+      \ has connected\n        self._switched = False\n        self._greet = threading.Timer(1.0, self._greeting,\
+      \ (self._mode,))\n        self._greet.daemon = True\n        self._greet.start()\n        return\
+      \ True\n\n    def stop(self):\n        self._greet.cancel()\n        return True\n\n    def _greeting(self,\
+      \ mode):\n        self._note(f\"Mode {mode}. Type /help for commands.\")\n        if not self._switched:\n\
+      \            self._setup_radio()\n\n    def _setup_radio(self):\n        if self._mode == \"CW\"\
+      :\n            self.message_port_pub(pmt.intern(\"radio\"), pmt.intern(\"CW DECODE\"))\n\n    def\
+      \ _show(self, line):\n        # gr-webserver shows one line per message and renders it as HTML\n\
+      \        line = line.replace(\"\\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\").replace(\"\
+      <\", \"&lt;\")\n        self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\n   \
+      \ def _note(self, line):\n        self._show(\"* \" + line)\n\n    def _send(self, mode, text):\n\
+      \        self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))\n\n    def _handle_in(self,\
+      \ msg):\n        line = _text(msg).strip()\n        cmd = line.lower()\n        if cmd in (\"/rtty\"\
+      , \"/cw\"):\n            self._mode = cmd[1:].upper()\n            self._switched = True\n     \
+      \       self._note(f\"Mode {self._mode}\")\n            self._setup_radio()\n        elif cmd in\
+      \ (\"\", \"/stop\"):\n            for m in MODES:\n                self._send(m, \"\")         \
+      \     # empty text = abort, in both blocks\n            self._note(\"Stop\")\n        elif cmd ==\
+      \ \"/help\":\n            for h in HELP:\n                self._note(h)\n        elif cmd.startswith(\"\
+      /\"):\n            self._note(f\"Unknown command {line}. Type /help.\")\n        else:\n       \
+      \     self._send(self._mode, line)\n\n    def _handle_status(self, msg):\n        state, _, err\
+      \ = _text(msg).partition(\" | \")\n        if err.startswith(\"ERROR: \"):\n            err = err[len(\"\
+      ERROR: \"):]\n        if err and err != self._error:\n            self._note(f\"ERROR: {err}\")\n\
+      \        self._error = err or None\n        if state != self._state and state not in QUIET_STATES:\n\
+      \            self._note(\"TX (CW keyer)\" if state == \"CW\" else state)\n            self._state\
+      \ = state\n\n    def _handle_info(self, msg):\n        self._note(_text(msg))\n\n    def _handle_rx_rtty(self,\
+      \ msg):\n        if self._mode == \"RTTY\":\n            self._show(_text(msg))\n\n    def _handle_rx_cw(self,\
+      \ msg):\n        if self._mode == \"CW\":\n            self._show(_text(msg))\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mode: '''CW'''
+  states:
+    _io_cache: '(''Console Router'', ''blk'', [(''mode'', "''CW''")], [(''in'', ''message'', 1), (''rx_cw'',
+      ''message'', 1), (''info'', ''message'', 1), (''status'', ''message'', 1), (''rx_rtty'', ''message'',
+      1)], [(''radio'', ''message'', 1), (''rtty'', ''message'', 1), (''cw'', ''message'', 1), (''display'',
+      ''message'', 1)], "Routes gr-webserver console lines to CW or RTTY and shows radio status.\n\nmode:
+      ''CW'' or ''RTTY'' at start (CW also sets the radio up, as /cw does); change it from\n      the
+      console with /cw or /rtty.\n", [])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 420
+    - 900
+    rotation: 0
+    state: enabled
+- name: console_in
+  id: zeromq_sub_msg_source
+  parameters:
+    address: '''tcp://127.0.0.1:50251'''
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: "Text typed in gr-webserver \n(v2.1, PUB/SUB). For v1.0.16 \nuse a ZMQ PULL Message \nSource\
+      \ instead."
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 88
+    - 896.0
+    rotation: 0
+    state: enabled
+- name: console_out
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: '''tcp://127.0.0.1:50252'''
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: Lines shown in gr-webserver. For v1.0.16 use a ZMQ PUSH Message Sink instead.
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 900
+    - 900
+    rotation: 0
+    state: enabled
+- name: cw_decoder
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nCW decoder (Embedded Python Block)\n\nStream input: float audio at samp_rate\
+      \ (the radio's USB audio, via an Audio Source).\nMessage inputs:\n  status - connect to the Icom\
+      \ CI-V PTT block's status output. Decoding pauses while\n           the radio is not in RX, and\
+      \ for holdoff_s after it returns to RX.\nMessage outputs:\n  text   - received text, one display\
+      \ line per message (connect to the Console\n           Router's rx_cw input).\n\nRadio: CW mode;\
+      \ pitch_hz should match the radio's CW Pitch (AFC follows tones within\nafc_hz of it). Needs cw_rx.py,\
+      \ icom_civ.py and rtty.py next to the .grc (or set lib_dir).\n\"\"\"\n\nimport sys\nimport threading\n\
+      import time\n\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"CW receiver: tone detector with AFC, adaptive speed (5-60 WPM), squelch.\n\n    pitch_hz:\
+      \ radio CW Pitch\n    afc_hz: follow the strongest tone within this distance of pitch_hz (0 = off)\n\
+      \    wpm: starting speed guess (the decoder adapts to the sender)\n    squelch: signal presence\
+      \ threshold (noise alone gives 3.8-5.8; default 6.5)\n    line_width: wrap received text at this\
+      \ many characters\n    holdoff_s: keep decoding paused this long after the radio returns to RX\n\
+      \    \"\"\"\n\n    def __init__(self, samp_rate=48000, pitch_hz=600.0, afc_hz=150.0, wpm=20.0, squelch=6.5,\n\
+      \                 line_width=64, holdoff_s=0.5, lib_dir=''):\n        gr.sync_block.__init__(self,\
+      \ name='CW Decoder', in_sig=[np.float32], out_sig=None)\n        self._cfg = dict(samp_rate=float(samp_rate),\
+      \ pitch=float(pitch_hz), afc=float(afc_hz),\n                         wpm=float(wpm), squelch=float(squelch),\
+      \ width=int(line_width),\n                         lib_dir=lib_dir)\n        self._holdoff = float(holdoff_s)\n\
+      \        self._dec = None\n        self._lines = None\n        self._rx = True\n        self._resume\
+      \ = 0.0\n        self._paused = False\n        self._lock = threading.Lock()\n        self.message_port_register_in(pmt.intern('status'))\n\
+      \        self.set_msg_handler(pmt.intern('status'), self._handle_status)\n        self.message_port_register_out(pmt.intern('text'))\n\
+      \n    def start(self):\n        c = self._cfg\n        if c['lib_dir'] and c['lib_dir'] not in sys.path:\n\
+      \            sys.path.insert(0, c['lib_dir'])\n        import cw_rx\n        import rtty\n     \
+      \   with self._lock:\n            self._dec = cw_rx.CwDecoder(c['samp_rate'], c['pitch'], c['afc'],\
+      \ c['wpm'], c['squelch'])\n            self._lines = rtty.LineAssembler(c['width'])\n        return\
+      \ True\n\n    def _handle_status(self, msg):\n        v = pmt.to_python(msg)\n        state = str(v[1]\
+      \ if isinstance(v, tuple) else v)\n        rx = state.startswith(\"RX\")\n        with self._lock:\n\
+      \            if rx and not self._rx:\n                self._resume = time.monotonic() + self._holdoff\n\
+      \            self._rx = rx\n\n    def work(self, input_items, output_items):\n        audio = input_items[0]\n\
+      \        now = time.monotonic()\n        with self._lock:\n            if self._dec is None:\n \
+      \               return len(audio)\n            if not self._rx or now < self._resume:\n        \
+      \        # own transmission: skip the audio; speed and levels are kept\n                self._paused\
+      \ = True\n                lines = self._lines.poll(now + self._lines.idle)\n            else:\n\
+      \                if self._paused:\n                    self._dec.interrupt()\n                 \
+      \   self._paused = False\n                lines = self._lines.feed(self._dec.receive(audio), now)\
+      \ + self._lines.poll(now)\n        for line in lines:\n            self.message_port_pub(pmt.intern('text'),\
+      \ pmt.intern(line))\n        return len(audio)\n"
+    afc_hz: '150.0'
+    affinity: ''
+    alias: ''
+    comment: ''
+    holdoff_s: '0.5'
+    lib_dir: ''''''
+    line_width: '64'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    pitch_hz: cw_pitch
+    samp_rate: samp_rate
+    squelch: '6.5'
+    wpm: cw_wpm
+  states:
+    _io_cache: '(''CW Decoder'', ''blk'', [(''samp_rate'', ''48000''), (''pitch_hz'', ''600.0''), (''afc_hz'',
+      ''150.0''), (''wpm'', ''20.0''), (''squelch'', ''6.5''), (''line_width'', ''64''), (''holdoff_s'',
+      ''0.5''), (''lib_dir'', "''''")], [(''0'', ''float'', 1), (''status'', ''message'', 1)], [(''text'',
+      ''message'', 1)], ''CW receiver: tone detector with AFC, adaptive speed (5-60 WPM), squelch.\n\npitch_hz:
+      radio CW Pitch\nafc_hz: follow the strongest tone within this distance of pitch_hz (0 = off)\nwpm:
+      starting speed guess (the decoder adapts to the sender)\nsquelch: signal presence threshold (noise
+      alone gives 3.8-5.8; default 6.5)\nline_width: wrap received text at this many characters\nholdoff_s:
+      keep decoding paused this long after the radio returns to RX\n'', [])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 420
+    - 1180
+    rotation: 0
+    state: enabled
+- name: icom_ptt
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nIcom CI-V T/R control (Embedded Python Block)\n\nMessage inputs:\n  ptt  -\
+      \ bool/int, or a (name . value) pair as sent by QT GUI Toggle Button.\n         True = transmit,\
+      \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
+      \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\n \
+      \ radio - radio setup command (symbol). \"CW DECODE\": switch to CW mode (keeping the\n        \
+      \ filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.\nMessage outputs:\n\
+      \  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n       \
+      \    it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool for a\
+      \ Mute block's set_mute port: True except while TX audio is wanted.\n  info   - symbol: notices\
+      \ about radio setup (connect to the Console Router's info input).\n\nNeeds icom_civ.py and civ_controller.py\
+      \ next to the .grc file (or set lib_dir).\nThe serial port is opened in start(), not when GRC loads\
+      \ the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\n\n\
+      def _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:     #\
+      \ (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v,\
+      \ str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n  \
+      \  return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail\
+      \ timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
+      \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
+      \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
+      \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
+      \ (0 = leave radio setting)\n    usb_mod_level: radio USB MOD Level %, set on start and when changed\
+      \ (-1 = leave)\n    error_hold_s: how long an error stays visible in the status text\n    lib_dir:\
+      \ directory holding icom_civ.py (blank = flowgraph directory)\n    \"\"\"\n\n    def __init__(self,\
+      \ port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n                 lead_ms=50, tail_ms=50, tx_timeout_s=180,\
+      \ cw_wpm=0, usb_mod_level=-1,\n                 error_hold_s=5, lib_dir=''):\n        gr.basic_block.__init__(self,\
+      \ name='Icom CI-V PTT', in_sig=None, out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud),\
+      \ radio_addr=int(radio_addr),\n                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n\
+      \                         tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm =\
+      \ int(cw_wpm)\n        self._usbmod = float(usb_mod_level)\n        self._civ = None\n        self._ctl\
+      \ = None\n        self._error_hold = float(error_hold_s)\n        self._status_lock = threading.Lock()\n\
+      \        self._state = 'RX'\n        self._error = ''\n        self._error_timer = None\n\n    \
+      \    self.message_port_register_in(pmt.intern('ptt'))\n        self.set_msg_handler(pmt.intern('ptt'),\
+      \ self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n        self.set_msg_handler(pmt.intern('cw'),\
+      \ self._handle_cw)\n        self.message_port_register_in(pmt.intern('radio'))\n        self.set_msg_handler(pmt.intern('radio'),\
+      \ self._handle_radio)\n        self.message_port_register_out(pmt.intern('status'))\n        self.message_port_register_out(pmt.intern('mute'))\n\
+      \        self.message_port_register_out(pmt.intern('info'))\n\n    # GRC turns a property with a\
+      \ setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n    def cw_wpm(self):\n\
+      \        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n        self._wpm =\
+      \ int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\n    @property\n\
+      \    def usb_mod_level(self):\n        return self._usbmod\n\n    @usb_mod_level.setter\n    def\
+      \ usb_mod_level(self, pct):\n        self._usbmod = float(pct)\n        if self._ctl is not None\
+      \ and self._usbmod >= 0:\n            self._ctl.set_usb_mod_level(self._usbmod)\n\n    def start(self):\n\
+      \        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n      \
+      \      sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
+      \        self._civ = icom_civ.CivPort(cfg['port'], cfg['baud'], cfg['radio_addr'])\n        try:\n\
+      \            self._civ.open()\n        except Exception as e:\n            self._civ = None\n  \
+      \          self._on_error(f\"cannot open {cfg['port']}: {e}\")\n            raise\n        self._ctl\
+      \ = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'], tx_timeout=cfg['tx_timeout'],\n\
+      \            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._on_state,\n          \
+      \  on_mute=self._publish_mute, on_error=self._on_error, on_info=self._publish_info)\n        self._ctl.start()\n\
+      \        return True\n\n    def stop(self):\n        if self._ctl is not None:\n            self._ctl.close()\
+      \           # always unkeys\n            self._ctl = None\n        if self._civ is not None:\n \
+      \           self._civ.close()\n            self._civ = None\n        with self._status_lock:\n \
+      \           if self._error_timer is not None:\n                self._error_timer.cancel()\n    \
+      \            self._error_timer = None\n        return True\n\n    def _handle_ptt(self, msg):\n\
+      \        if self._ctl is not None:\n            self._ctl.ptt(_to_bool(_value(msg)))\n\n    def\
+      \ _handle_cw(self, msg):\n        if self._ctl is not None:\n            v = _value(msg)\n     \
+      \       self._ctl.cw(v if isinstance(v, str) else str(v))\n\n    def _handle_radio(self, msg):\n\
+      \        if self._ctl is None:\n            return\n        cmd = \" \".join(str(_value(msg)).upper().split())\n\
+      \        if cmd == \"CW DECODE\":\n            self._ctl.setup_cw_decode()\n        else:\n    \
+      \        self._on_error(f\"unknown radio command {cmd!r}\")\n\n    # status text: current state,\
+      \ plus the latest error for error_hold_s seconds\n    def _on_state(self, state):\n        with\
+      \ self._status_lock:\n            self._state = state\n            self._publish_status()\n\n  \
+      \  def _on_error(self, text):\n        with self._status_lock:\n            self._error = text\n\
+      \            if self._error_timer is not None:\n                self._error_timer.cancel()\n   \
+      \         self._error_timer = threading.Timer(self._error_hold, self._clear_error)\n           \
+      \ self._error_timer.daemon = True\n            self._error_timer.start()\n            self._publish_status()\n\
+      \n    def _clear_error(self):\n        with self._status_lock:\n            self._error = ''\n \
+      \           self._error_timer = None\n            self._publish_status()\n\n    def _publish_status(self):\n\
+      \        text = f\"{self._state} | ERROR: {self._error}\" if self._error else self._state\n    \
+      \    self.message_port_pub(pmt.intern('status'), pmt.intern(text))\n\n    def _publish_mute(self,\
+      \ mute):\n        self.message_port_pub(pmt.intern('mute'), pmt.from_bool(bool(mute)))\n\n    def\
+      \ _publish_info(self, text):\n        self.message_port_pub(pmt.intern('info'), pmt.intern(text))\n"
+    affinity: ''
+    alias: ''
+    baud: '115200'
+    comment: ''
+    cw_wpm: cw_wpm
+    error_hold_s: '5'
+    lead_ms: '50'
+    lib_dir: ''''''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    port: serial_port
+    radio_addr: radio_addr
+    tail_ms: '50'
+    tx_timeout_s: '180'
+    usb_mod_level: usb_mod_level
+  states:
+    _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
+      (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
+      (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''error_hold_s'', ''5''), (''lib_dir'', "''''")],
+      [(''ptt'', ''message'', 1), (''radio'', ''message'', 1), (''cw'', ''message'', 1)], [(''info'',
+      ''message'', 1), (''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom CI-V T/R control:
+      PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr:
+      CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio
+      is un-muted\ntail_ms: carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this
+      long in TX\ncw_wpm: keyer speed set on start and when changed (0 = leave radio setting)\nusb_mod_level:
+      radio USB MOD Level %, set on start and when changed (-1 = leave)\nerror_hold_s: how long an error
+      stays visible in the status text\nlib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n'',
+      [''cw_wpm'', ''usb_mod_level''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 432
+    - 244.0
     rotation: 0
     state: enabled
 - name: rtty_demod
@@ -247,22 +639,22 @@ blocks:
       \ to decode\n                lines = self._lines.poll(now + self._lines.idle)   # flush what we\
       \ had\n            else:\n                lines = self._lines.feed(self._demod.receive(audio), now)\
       \ + self._lines.poll(now)\n        self._publish(lines)\n        return len(audio)\n"
-    samp_rate: samp_rate
+    affinity: ''
+    alias: ''
     baud: '45.45'
-    mark_hz: '2125.0'
-    space_hz: '2295.0'
-    reverse: rx_reverse
-    squelch: '0.6'
-    usos: 'True'
-    line_width: '64'
+    comment: ''
     holdoff_s: '0.5'
     lib_dir: ''''''
+    line_width: '64'
+    mark_hz: '2125.0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    reverse: rx_reverse
+    samp_rate: samp_rate
+    space_hz: '2295.0'
+    squelch: '0.6'
+    usos: 'True'
   states:
-    coordinate:
-    - 420
-    - 1100
-    rotation: 0
-    state: enabled
     _io_cache: '(''RTTY Demod'', ''blk'', [(''samp_rate'', ''48000''), (''baud'', ''45.45''), (''mark_hz'',
       ''2125.0''), (''space_hz'', ''2295.0''), (''reverse'', ''False''), (''squelch'', ''0.6''), (''usos'',
       ''True''), (''line_width'', ''64''), (''holdoff_s'', ''0.5''), (''lib_dir'', "''''")], [(''0'',
@@ -271,289 +663,14 @@ blocks:
       running)\nsquelch: minimum character quality 0-1 (0 = off; 0.6 hides most noise)\nusos: unshift
       to letters on space\nline_width: wrap received text at this many characters\nholdoff_s: keep decoding
       paused this long after the radio returns to RX\n'', [''reverse''])'
-- name: cw_decoder
-  id: epy_block
-  parameters:
-    _source_code: "\"\"\"\nCW decoder (Embedded Python Block)\n\nStream input: float audio at samp_rate\
-      \ (the radio's USB audio, via an Audio Source).\nMessage inputs:\n  status - connect to the Icom\
-      \ CI-V PTT block's status output. Decoding pauses while\n           the radio is not in RX, and\
-      \ for holdoff_s after it returns to RX.\nMessage outputs:\n  text   - received text, one display\
-      \ line per message (connect to the Console\n           Router's rx_cw input).\n\nRadio: CW mode;\
-      \ pitch_hz should match the radio's CW Pitch (AFC follows tones within\nafc_hz of it). Needs cw_rx.py,\
-      \ icom_civ.py and rtty.py next to the .grc (or set lib_dir).\n\"\"\"\n\nimport sys\nimport threading\n\
-      import time\n\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
-      \    \"\"\"CW receiver: tone detector with AFC, adaptive speed (5-60 WPM), squelch.\n\n    pitch_hz:\
-      \ radio CW Pitch\n    afc_hz: follow the strongest tone within this distance of pitch_hz (0 = off)\n\
-      \    wpm: starting speed guess (the decoder adapts to the sender)\n    squelch: signal presence\
-      \ threshold (noise alone gives 3.8-5.8; default 6.5)\n    line_width: wrap received text at this\
-      \ many characters\n    holdoff_s: keep decoding paused this long after the radio returns to RX\n\
-      \    \"\"\"\n\n    def __init__(self, samp_rate=48000, pitch_hz=600.0, afc_hz=150.0, wpm=20.0, squelch=6.5,\n\
-      \                 line_width=64, holdoff_s=0.5, lib_dir=''):\n        gr.sync_block.__init__(self,\
-      \ name='CW Decoder', in_sig=[np.float32], out_sig=None)\n        self._cfg = dict(samp_rate=float(samp_rate),\
-      \ pitch=float(pitch_hz), afc=float(afc_hz),\n                         wpm=float(wpm), squelch=float(squelch),\
-      \ width=int(line_width),\n                         lib_dir=lib_dir)\n        self._holdoff = float(holdoff_s)\n\
-      \        self._dec = None\n        self._lines = None\n        self._rx = True\n        self._resume\
-      \ = 0.0\n        self._paused = False\n        self._lock = threading.Lock()\n        self.message_port_register_in(pmt.intern('status'))\n\
-      \        self.set_msg_handler(pmt.intern('status'), self._handle_status)\n        self.message_port_register_out(pmt.intern('text'))\n\
-      \n    def start(self):\n        c = self._cfg\n        if c['lib_dir'] and c['lib_dir'] not in sys.path:\n\
-      \            sys.path.insert(0, c['lib_dir'])\n        import cw_rx\n        import rtty\n     \
-      \   with self._lock:\n            self._dec = cw_rx.CwDecoder(c['samp_rate'], c['pitch'], c['afc'],\
-      \ c['wpm'], c['squelch'])\n            self._lines = rtty.LineAssembler(c['width'])\n        return\
-      \ True\n\n    def _handle_status(self, msg):\n        v = pmt.to_python(msg)\n        state = str(v[1]\
-      \ if isinstance(v, tuple) else v)\n        rx = state.startswith(\"RX\")\n        with self._lock:\n\
-      \            if rx and not self._rx:\n                self._resume = time.monotonic() + self._holdoff\n\
-      \            self._rx = rx\n\n    def work(self, input_items, output_items):\n        audio = input_items[0]\n\
-      \        now = time.monotonic()\n        with self._lock:\n            if self._dec is None:\n \
-      \               return len(audio)\n            if not self._rx or now < self._resume:\n        \
-      \        # own transmission: skip the audio; speed and levels are kept\n                self._paused\
-      \ = True\n                lines = self._lines.poll(now + self._lines.idle)\n            else:\n\
-      \                if self._paused:\n                    self._dec.interrupt()\n                 \
-      \   self._paused = False\n                lines = self._lines.feed(self._dec.receive(audio), now)\
-      \ + self._lines.poll(now)\n        for line in lines:\n            self.message_port_pub(pmt.intern('text'),\
-      \ pmt.intern(line))\n        return len(audio)\n"
-    samp_rate: samp_rate
-    pitch_hz: cw_pitch
-    afc_hz: '150.0'
-    wpm: cw_wpm
-    squelch: '6.5'
-    line_width: '64'
-    holdoff_s: '0.5'
-    lib_dir: ''''''
-  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
-    - 420
-    - 1180
+    - 608
+    - 1052.0
     rotation: 0
     state: enabled
-    _io_cache: '(''CW Decoder'', ''blk'', [(''samp_rate'', ''48000''), (''pitch_hz'', ''600.0''), (''afc_hz'',
-      ''150.0''), (''wpm'', ''20.0''), (''squelch'', ''6.5''), (''line_width'', ''64''), (''holdoff_s'',
-      ''0.5''), (''lib_dir'', "''''")], [(''0'', ''float'', 1), (''status'', ''message'', 1)], [(''text'',
-      ''message'', 1)], ''CW receiver: tone detector with AFC, adaptive speed (5-60 WPM), squelch.\n\npitch_hz:
-      radio CW Pitch\nafc_hz: follow the strongest tone within this distance of pitch_hz (0 = off)\nwpm:
-      starting speed guess (the decoder adapts to the sender)\nsquelch: signal presence threshold (noise
-      alone gives 3.8-5.8; default 6.5)\nline_width: wrap received text at this many characters\nholdoff_s:
-      keep decoding paused this long after the radio returns to RX\n'', [])'
-- name: rx_decim
-  id: rational_resampler_xxx
-  parameters:
-    type: fff
-    interp: '1'
-    decim: '8'
-    taps: '[]'
-    fbw: '0'
-  states:
-    coordinate:
-    - 420
-    - 1260
-    rotation: 0
-    state: enabled
-- name: rx_waterfall
-  id: qtgui_waterfall_sink_x
-  parameters:
-    type: float
-    name: '''RX audio (RTTY: 2125/2295 Hz, CW: pitch)'''
-    fftsize: '1024'
-    freqhalf: 'False'
-    fc: '0'
-    bw: samp_rate/8
-    int_min: '-110'
-    int_max: '-30'
-    update_time: '0.1'
-    grid: 'True'
-    legend: 'True'
-    axislabels: 'True'
-    showports: 'False'
-    gui_hint: 4,0,1,2
-  states:
-    coordinate:
-    - 700
-    - 1260
-    rotation: 0
-    state: enabled
-- name: console_in
-  id: zeromq_sub_msg_source
-  parameters:
-    address: '''tcp://127.0.0.1:50251'''
-    timeout: '100'
-    bind: 'False'
-    comment: Text typed in gr-webserver (v2.1, PUB/SUB). For v1.0.16 use a ZMQ PULL Message Source instead.
-  states:
-    coordinate:
-    - 16
-    - 860
-    rotation: 0
-    state: enabled
-- name: console
-  id: epy_block
-  parameters:
-    _source_code: "\"\"\"\nConsole router (Embedded Python Block) for gr-webserver\n(https://github.com/duggabe/gr-webserver,\
-      \ v2.1: ZMQ PUB/SUB).\n\nConnect:\n  ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False)\
-      \ -> in\n  display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)\n  cw   -> Icom CI-V\
-      \ PTT block's cw input\n  rtty -> RTTY AFSK Mod's text input\n  Icom CI-V PTT status -> status,\
-      \  RTTY AFSK Mod info -> info\n  RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw\n\nEach line\
-      \ typed in the console is sent in the current mode. Commands:\n  /cw  /rtty   switch mode\n  /stop\
-      \        abort the current CW or RTTY transmission (an empty line does the same)\n  /help      \
-      \  list the commands\nThe console shows received text for the current mode (RTTY in RTTY mode, CW\
-      \ in CW mode)\nas it is, and radio state changes (TX / RX), errors and notices with a \"* \" in\
-      \ front.\n\"\"\"\n\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\nMODES = (\"RTTY\"\
-      , \"CW\")\nHELP = [\"Type a line and press Enter to send it in the current mode.\",\n        \"\
-      /rtty or /cw: switch mode.  /stop or empty line: abort.  /help: this list.\"]\nQUIET_STATES = (\"\
-      LEAD\", \"TAIL\")     # brief PTT sequencing states, not worth showing\n\n\ndef _text(msg):\n  \
-      \  v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:\n        v = v[1]\n    if\
-      \ isinstance(v, (bytes, bytearray)):\n        v = bytes(v).decode(\"utf-8\", \"replace\")\n    return\
-      \ v if isinstance(v, str) else str(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Routes gr-webserver\
-      \ console lines to CW or RTTY and shows radio status.\n\n    mode: 'RTTY' or 'CW' at start; change\
-      \ it from the console with /rtty or /cw.\n    \"\"\"\n\n    def __init__(self, mode='RTTY'):\n \
-      \       gr.basic_block.__init__(self, name='Console Router', in_sig=None, out_sig=None)\n      \
-      \  m = str(mode).upper()\n        self._mode = m if m in MODES else MODES[0]\n        self._state\
-      \ = None\n        self._error = None\n        self._greet = threading.Timer(0, lambda: None)\n \
-      \       for port, handler in ((\"in\", self._handle_in), (\"status\", self._handle_status),\n  \
-      \                            (\"info\", self._handle_info), (\"rx_rtty\", self._handle_rx_rtty),\n\
-      \                              (\"rx_cw\", self._handle_rx_cw)):\n            self.message_port_register_in(pmt.intern(port))\n\
-      \            self.set_msg_handler(pmt.intern(port), handler)\n        for port in (\"display\",\
-      \ \"cw\", \"rtty\"):\n            self.message_port_register_out(pmt.intern(port))\n\n    def start(self):\n\
-      \        # delayed: ZMQ PUB drops messages until the console's SUB socket has connected\n      \
-      \  self._greet = threading.Timer(1.0, self._note, (f\"Mode {self._mode}. Type /help for commands.\"\
-      ,))\n        self._greet.daemon = True\n        self._greet.start()\n        return True\n\n   \
-      \ def stop(self):\n        self._greet.cancel()\n        return True\n\n    def _show(self, line):\n\
-      \        # gr-webserver shows one line per message and renders it as HTML\n        line = line.replace(\"\
-      \\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\").replace(\"<\", \"&lt;\")\n     \
-      \   self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\n    def _note(self, line):\n\
-      \        self._show(\"* \" + line)\n\n    def _send(self, mode, text):\n        self.message_port_pub(pmt.intern(mode.lower()),\
-      \ pmt.intern(text))\n\n    def _handle_in(self, msg):\n        line = _text(msg).strip()\n     \
-      \   cmd = line.lower()\n        if cmd in (\"/rtty\", \"/cw\"):\n            self._mode = cmd[1:].upper()\n\
-      \            self._note(f\"Mode {self._mode}\")\n        elif cmd in (\"\", \"/stop\"):\n      \
-      \      for m in MODES:\n                self._send(m, \"\")              # empty text = abort, in\
-      \ both blocks\n            self._note(\"Stop\")\n        elif cmd == \"/help\":\n            for\
-      \ h in HELP:\n                self._note(h)\n        elif cmd.startswith(\"/\"):\n            self._note(f\"\
-      Unknown command {line}. Type /help.\")\n        else:\n            self._send(self._mode, line)\n\
-      \n    def _handle_status(self, msg):\n        state, _, err = _text(msg).partition(\" | \")\n  \
-      \      if err.startswith(\"ERROR: \"):\n            err = err[len(\"ERROR: \"):]\n        if err\
-      \ and err != self._error:\n            self._note(f\"ERROR: {err}\")\n        self._error = err\
-      \ or None\n        if state != self._state and state not in QUIET_STATES:\n            self._note(\"\
-      TX (CW keyer)\" if state == \"CW\" else state)\n            self._state = state\n\n    def _handle_info(self,\
-      \ msg):\n        self._note(_text(msg))\n\n    def _handle_rx_rtty(self, msg):\n        if self._mode\
-      \ == \"RTTY\":\n            self._show(_text(msg))\n\n    def _handle_rx_cw(self, msg):\n      \
-      \  if self._mode == \"CW\":\n            self._show(_text(msg))\n"
-    mode: '''RTTY'''
-  states:
-    coordinate:
-    - 420
-    - 900
-    rotation: 0
-    state: enabled
-    _io_cache: '(''Console Router'', ''blk'', [(''mode'', "''RTTY''")], [(''rx_rtty'', ''message'', 1),
-      (''status'', ''message'', 1), (''rx_cw'', ''message'', 1), (''info'', ''message'', 1), (''in'',
-      ''message'', 1)], [(''rtty'', ''message'', 1), (''cw'', ''message'', 1), (''display'', ''message'',
-      1)], "Routes gr-webserver console lines to CW or RTTY and shows radio status.\n\nmode: ''RTTY''
-      or ''CW'' at start; change it from the console with /rtty or /cw.\n", [])'
-- name: console_out
-  id: zeromq_pub_msg_sink
-  parameters:
-    address: '''tcp://127.0.0.1:50252'''
-    timeout: '100'
-    bind: 'True'
-    comment: Lines shown in gr-webserver. For v1.0.16 use a ZMQ PUSH Message Sink instead.
-  states:
-    coordinate:
-    - 900
-    - 900
-    rotation: 0
-    state: enabled
-- name: icom_ptt
-  id: epy_block
-  parameters:
-    _source_code: "\"\"\"\nIcom CI-V T/R control (Embedded Python Block)\n\nMessage inputs:\n  ptt  -\
-      \ bool/int, or a (name . value) pair as sent by QT GUI Toggle Button.\n         True = transmit,\
-      \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
-      \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\nMessage\
-      \ outputs:\n  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n\
-      \           it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool\
-      \ for a Mute block's set_mute port: True except while TX audio is wanted.\n\nNeeds icom_civ.py and\
-      \ civ_controller.py next to the .grc file (or set lib_dir).\nThe serial port is opened in start(),\
-      \ not when GRC loads the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio\
-      \ import gr\n\n\ndef _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v)\
-      \ == 2:     # (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if\
-      \ isinstance(v, str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"\
-      pressed\")\n    return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control:\
-      \ PTT with lead/tail timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
-      \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
-      \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
-      \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
-      \ (0 = leave radio setting)\n    usb_mod_level: radio USB MOD Level %, set on start and when changed\
-      \ (-1 = leave)\n    error_hold_s: how long an error stays visible in the status text\n    lib_dir:\
-      \ directory holding icom_civ.py (blank = flowgraph directory)\n    \"\"\"\n\n    def __init__(self,\
-      \ port='/dev/ttyACM0', baud=115200, radio_addr=0xB6,\n                 lead_ms=50, tail_ms=50, tx_timeout_s=180,\
-      \ cw_wpm=0, usb_mod_level=-1,\n                 error_hold_s=5, lib_dir=''):\n        gr.basic_block.__init__(self,\
-      \ name='Icom CI-V PTT', in_sig=None, out_sig=None)\n        self._cfg = dict(port=port, baud=int(baud),\
-      \ radio_addr=int(radio_addr),\n                         lead=lead_ms / 1000.0, tail=tail_ms / 1000.0,\n\
-      \                         tx_timeout=float(tx_timeout_s), lib_dir=lib_dir)\n        self._wpm =\
-      \ int(cw_wpm)\n        self._usbmod = float(usb_mod_level)\n        self._civ = None\n        self._ctl\
-      \ = None\n        self._error_hold = float(error_hold_s)\n        self._status_lock = threading.Lock()\n\
-      \        self._state = 'RX'\n        self._error = ''\n        self._error_timer = None\n\n    \
-      \    self.message_port_register_in(pmt.intern('ptt'))\n        self.set_msg_handler(pmt.intern('ptt'),\
-      \ self._handle_ptt)\n        self.message_port_register_in(pmt.intern('cw'))\n        self.set_msg_handler(pmt.intern('cw'),\
-      \ self._handle_cw)\n        self.message_port_register_out(pmt.intern('status'))\n        self.message_port_register_out(pmt.intern('mute'))\n\
-      \n    # GRC turns a property with a setter into a run-time callback (e.g. a QT GUI Range)\n    @property\n\
-      \    def cw_wpm(self):\n        return self._wpm\n\n    @cw_wpm.setter\n    def cw_wpm(self, wpm):\n\
-      \        self._wpm = int(wpm)\n        if self._ctl is not None:\n            self._ctl.set_wpm(self._wpm)\n\
-      \n    @property\n    def usb_mod_level(self):\n        return self._usbmod\n\n    @usb_mod_level.setter\n\
-      \    def usb_mod_level(self, pct):\n        self._usbmod = float(pct)\n        if self._ctl is not\
-      \ None and self._usbmod >= 0:\n            self._ctl.set_usb_mod_level(self._usbmod)\n\n    def\
-      \ start(self):\n        cfg = self._cfg\n        if cfg['lib_dir'] and cfg['lib_dir'] not in sys.path:\n\
-      \            sys.path.insert(0, cfg['lib_dir'])\n        import icom_civ\n        import civ_controller\n\
-      \        self._civ = icom_civ.CivPort(cfg['port'], cfg['baud'], cfg['radio_addr'])\n        try:\n\
-      \            self._civ.open()\n        except Exception as e:\n            self._civ = None\n  \
-      \          self._on_error(f\"cannot open {cfg['port']}: {e}\")\n            raise\n        self._ctl\
-      \ = civ_controller.TxController(\n            self._civ, lead=cfg['lead'], tail=cfg['tail'], tx_timeout=cfg['tx_timeout'],\n\
-      \            cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._on_state,\n          \
-      \  on_mute=self._publish_mute, on_error=self._on_error)\n        self._ctl.start()\n        return\
-      \ True\n\n    def stop(self):\n        if self._ctl is not None:\n            self._ctl.close()\
-      \           # always unkeys\n            self._ctl = None\n        if self._civ is not None:\n \
-      \           self._civ.close()\n            self._civ = None\n        with self._status_lock:\n \
-      \           if self._error_timer is not None:\n                self._error_timer.cancel()\n    \
-      \            self._error_timer = None\n        return True\n\n    def _handle_ptt(self, msg):\n\
-      \        if self._ctl is not None:\n            self._ctl.ptt(_to_bool(_value(msg)))\n\n    def\
-      \ _handle_cw(self, msg):\n        if self._ctl is not None:\n            v = _value(msg)\n     \
-      \       self._ctl.cw(v if isinstance(v, str) else str(v))\n\n    # status text: current state, plus\
-      \ the latest error for error_hold_s seconds\n    def _on_state(self, state):\n        with self._status_lock:\n\
-      \            self._state = state\n            self._publish_status()\n\n    def _on_error(self,\
-      \ text):\n        with self._status_lock:\n            self._error = text\n            if self._error_timer\
-      \ is not None:\n                self._error_timer.cancel()\n            self._error_timer = threading.Timer(self._error_hold,\
-      \ self._clear_error)\n            self._error_timer.daemon = True\n            self._error_timer.start()\n\
-      \            self._publish_status()\n\n    def _clear_error(self):\n        with self._status_lock:\n\
-      \            self._error = ''\n            self._error_timer = None\n            self._publish_status()\n\
-      \n    def _publish_status(self):\n        text = f\"{self._state} | ERROR: {self._error}\" if self._error\
-      \ else self._state\n        self.message_port_pub(pmt.intern('status'), pmt.intern(text))\n\n  \
-      \  def _publish_mute(self, mute):\n        self.message_port_pub(pmt.intern('mute'), pmt.from_bool(bool(mute)))\n"
-    port: serial_port
-    baud: '115200'
-    radio_addr: radio_addr
-    lead_ms: '50'
-    tail_ms: '50'
-    tx_timeout_s: '180'
-    cw_wpm: cw_wpm
-    usb_mod_level: usb_mod_level
-    error_hold_s: '5'
-    lib_dir: ''''''
-  states:
-    coordinate:
-    - 420
-    - 260
-    rotation: 0
-    state: enabled
-    _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
-      (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
-      (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''error_hold_s'', ''5''), (''lib_dir'', "''''")],
-      [(''cw'', ''message'', 1), (''ptt'', ''message'', 1)], [(''mute'', ''message'', 1), (''status'',
-      ''message'', 1)], ''Icom CI-V T/R control: PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport:
-      serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr: CI-V address
-      (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio is un-muted\ntail_ms:
-      carrier hold after PTT release\ntx_timeout_s: watchdog, unkeys after this long in TX\ncw_wpm: keyer
-      speed set on start and when changed (0 = leave radio setting)\nusb_mod_level: radio USB MOD Level
-      %, set on start and when changed (-1 = leave)\nerror_hold_s: how long an error stays visible in
-      the status text\nlib_dir: directory holding icom_civ.py (blank = flowgraph directory)\n'', [''cw_wpm'',
-      ''usb_mod_level''])'
 - name: rtty_mod
   id: epy_block
   parameters:
@@ -597,22 +714,21 @@ blocks:
       \    def work(self, input_items, output_items):\n        out = output_items[0]\n        with self._lock:\n\
       \            if self._tx is None:\n                out[:] = 0\n            else:\n             \
       \   out[:] = self._tx.produce(len(out))\n        return len(out)\n"
-    samp_rate: samp_rate
-    baud: '45.45'
-    mark_hz: '2125.0'
-    space_hz: '2295.0'
+    affinity: ''
+    alias: ''
     amplitude: '0.3'
-    preamble_s: '0.3'
-    postamble_s: '0.2'
-    release_delay_s: '0.5'
+    baud: '45.45'
+    comment: ''
     lib_dir: ''''''
+    mark_hz: '2125.0'
     maxoutbuf: '1024'
+    minoutbuf: '0'
+    postamble_s: '0.2'
+    preamble_s: '0.3'
+    release_delay_s: '0.5'
+    samp_rate: samp_rate
+    space_hz: '2295.0'
   states:
-    coordinate:
-    - 420
-    - 700
-    rotation: 0
-    state: enabled
     _io_cache: '(''RTTY AFSK Mod'', ''blk'', [(''samp_rate'', ''48000''), (''baud'', ''45.45''), (''mark_hz'',
       ''2125.0''), (''space_hz'', ''2295.0''), (''amplitude'', ''0.3''), (''preamble_s'', ''0.3''), (''postamble_s'',
       ''0.2''), (''release_delay_s'', ''0.5''), (''lib_dir'', "''''")], [(''status'', ''message'', 1),
@@ -621,110 +737,172 @@ blocks:
       idle after the radio reports TX, before the text\npostamble_s: mark tail after the text\nrelease_delay_s:
       wait after the last sample before releasing PTT; must cover the\n    audio buffering between this
       block and the radio (about 0.4 s in the demo)\n'', [])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 420
+    - 700
+    rotation: 0
+    state: enabled
+- name: rx_decim
+  id: rational_resampler_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '8'
+    fbw: '0'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    taps: '[]'
+    type: fff
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 504
+    - 1384.0
+    rotation: 0
+    state: enabled
+- name: rx_waterfall
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate/8
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: '0'
+    fftsize: '1024'
+    freqhalf: 'False'
+    grid: 'True'
+    gui_hint: 4,0,1,2
+    int_max: '-30'
+    int_min: '-110'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '''RX audio (RTTY: 2125/2295 Hz, CW: pitch)'''
+    nconnections: '1'
+    showports: 'False'
+    type: float
+    update_time: '0.1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 904
+    - 1232.0
+    rotation: 0
+    state: enabled
+- name: status_box
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: 0,1,1,1
+    is_pair: 'False'
+    is_static: 'False'
+    key: ''''''
+    label: '''Status'''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: string
+    value: '''RX'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 768
+    - 304.0
+    rotation: 0
+    state: enabled
 - name: tone
   id: analog_sig_source_x
   parameters:
-    type: float
-    samp_rate: samp_rate
-    waveform: analog.GR_COS_WAVE
-    freq: tone_freq
+    affinity: ''
+    alias: ''
     amp: 0.3 if tone_on else 0
+    comment: ''
+    freq: tone_freq
+    maxoutbuf: '1024'
+    minoutbuf: '0'
     offset: '0'
     phase: '0'
-    maxoutbuf: '1024'
+    samp_rate: samp_rate
+    showports: 'False'
+    type: float
+    waveform: analog.GR_COS_WAVE
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
     - 420
     - 520
     rotation: 0
     state: enabled
-- name: audio_sum
-  id: blocks_add_xx
-  parameters:
-    type: float
-    num_inputs: '2'
-    vlen: '1'
-    maxoutbuf: '1024'
-  states:
-    coordinate:
-    - 700
-    - 600
-    rotation: 0
-    state: enabled
 - name: tx_mute
   id: blocks_mute_xx
   parameters:
-    type: float
-    mute: 'True'
+    affinity: ''
+    alias: ''
+    comment: ''
     maxoutbuf: '1024'
+    minoutbuf: '0'
+    mute: 'True'
+    type: float
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate:
     - 860
     - 600
     rotation: 0
     state: enabled
-- name: audio_out
-  id: audio_sink
-  parameters:
-    samp_rate: samp_rate
-    device_name: audio_dev
-    ok_to_block: 'True'
-    num_inputs: '1'
-  states:
-    coordinate:
-    - 1040
-    - 600
-    rotation: 0
-    state: enabled
 connections:
-- - ptt
-  - state
-  - icom_ptt
-  - ptt
-- - console_in
-  - out
-  - console
-  - in
-- - console
-  - cw
-  - icom_ptt
-  - cw
-- - console
-  - rtty
-  - rtty_mod
-  - text
-- - console
-  - display
-  - console_out
-  - in
-- - icom_ptt
-  - status
-  - console
-  - status
-- - rtty_mod
-  - info
-  - console
-  - info
-- - rtty_demod
-  - text
-  - console
-  - rx_rtty
-- - cw_decoder
-  - text
-  - console
-  - rx_cw
-- - icom_ptt
-  - status
-  - cw_decoder
-  - status
 - - audio_in
   - '0'
   - cw_decoder
   - '0'
-- - icom_ptt
-  - status
-  - rtty_demod
-  - status
 - - audio_in
   - '0'
   - rtty_demod
@@ -733,42 +911,94 @@ connections:
   - '0'
   - rx_decim
   - '0'
-- - rx_decim
+- - audio_sum
   - '0'
-  - rx_waterfall
+  - tx_mute
   - '0'
-- - icom_ptt
-  - status
-  - status_box
-  - val
+- - console
+  - cw
+  - icom_ptt
+  - cw
+- - console
+  - display
+  - console_out
+  - in
+- - console
+  - rtty
+  - rtty_mod
+  - text
+- - console_in
+  - out
+  - console
+  - in
+- - cw_decoder
+  - text
+  - console
+  - rx_cw
 - - icom_ptt
   - mute
   - tx_mute
   - set_mute
 - - icom_ptt
   - status
+  - console
+  - status
+- - icom_ptt
+  - status
+  - cw_decoder
+  - status
+- - icom_ptt
+  - status
+  - rtty_demod
+  - status
+- - icom_ptt
+  - status
   - rtty_mod
   - status
-- - rtty_mod
-  - ptt
+- - icom_ptt
+  - status
+  - status_box
+  - val
+- - ptt
+  - state
   - icom_ptt
   - ptt
-- - tone
-  - '0'
-  - audio_sum
-  - '0'
+- - rtty_demod
+  - text
+  - console
+  - rx_rtty
 - - rtty_mod
   - '0'
   - audio_sum
   - '1'
-- - audio_sum
+- - rtty_mod
+  - info
+  - console
+  - info
+- - rtty_mod
+  - ptt
+  - icom_ptt
+  - ptt
+- - rx_decim
   - '0'
-  - tx_mute
+  - rx_waterfall
+  - '0'
+- - tone
+  - '0'
+  - audio_sum
   - '0'
 - - tx_mute
   - '0'
   - audio_out
   - '0'
+- - console
+  - radio
+  - icom_ptt
+  - radio
+- - icom_ptt
+  - info
+  - console
+  - info
 metadata:
   file_format: 1
   grc_version: 3.10.12.0

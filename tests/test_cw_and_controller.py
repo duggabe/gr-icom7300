@@ -71,7 +71,7 @@ class TestCwHelpers(unittest.TestCase):
 
 class Recorder:
     def __init__(self):
-        self.states, self.mutes, self.errors = [], [], []
+        self.states, self.mutes, self.errors, self.infos = [], [], [], []
         self.cond = threading.Condition()
 
     def state(self, s):
@@ -89,7 +89,7 @@ def make(radio=None, **kw):
     port = civ.CivPort(serial_port=radio, timeout=0.2, retries=0).open()
     rec = Recorder()
     c = ctl.TxController(port, on_state=rec.state, on_mute=rec.mutes.append,
-                         on_error=rec.errors.append, **kw)
+                         on_error=rec.errors.append, on_info=rec.infos.append, **kw)
     c.start()
     return radio, port, c, rec
 
@@ -172,6 +172,42 @@ class TestController(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(self.r.cw, [])
         self.assertIn("CW ignored", rec.errors[0])
+
+    def wait_info(self, rec, timeout=2.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline and not (rec.infos or rec.errors):
+            time.sleep(0.02)
+
+    def test_cw_decode_setup(self):
+        r = FakeRadio()
+        r.mode = (0x01, 0x02)                     # USB, FIL2
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_cw_decode()
+        self.wait_info(rec)
+        self.assertEqual(rec.errors, [])
+        self.assertEqual(r.mode, (0x03, 0x02))    # CW, filter kept
+        self.assertEqual(r.menu[b"\x02\x64"], b"\x02")
+        self.assertIn("CW mode, FIL2", rec.infos[0])
+
+    def test_cw_decode_setup_already_cw(self):
+        r = FakeRadio()
+        r.mode = (0x07, 0x01)                     # CW-R stays CW-R
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_cw_decode()
+        self.wait_info(rec)
+        self.assertEqual(r.mode, (0x07, 0x01))
+        self.assertFalse(any(w[4:5] == bytes([civ.CMD_SET_MODE]) for w in r.writes))
+        self.assertIn("CW-R mode", rec.infos[0])
+
+    def test_cw_decode_setup_refused_while_tx(self):
+        self.r, self.port, self.c, rec = make(lead=0.0)
+        self.c.ptt(True)
+        self.assertTrue(rec.wait_state(ctl.TX))
+        self.c.setup_cw_decode()
+        time.sleep(0.1)
+        self.assertEqual(self.r.mode, (0x01, 0x01))
+        self.assertIn("ignored", rec.errors[0])
+        self.assertTrue(self.r.tx)
 
 
 if __name__ == "__main__":

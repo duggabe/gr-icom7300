@@ -147,6 +147,31 @@ to the console (shown in console mode CW, `/cw`).
 - In tests: clean copy at 13–50 WPM, ±130 Hz off pitch, 15% timing jitter, 6 dB fades, and
   about 4 dB SNR (500 Hz bandwidth); runs about 60× faster than real time.
 
+### The radio's own CW decoder
+
+The IC-7300MK2 has a built-in CW DECODE screen (Advanced manual, p. 2-12). It can't be
+opened over CI-V, and its decoded text can't be read back, so `/cw` prepares the radio and
+the screen is opened by hand:
+
+1. Start the flowgraph (CW is the default mode) or type `/cw`. The Console Router sends `CW DECODE` to the Icom CI-V PTT block (`radio`
+   input), which:
+   - reads the mode; if it isn't CW or CW-R, switches to CW and keeps the filter (FIL1-3);
+   - sets "CW [KEYER/DECODE] Key" in the MENU screen's own settings (MENU SET; CI-V item
+     0264) to `DECODE`, so touching
+     [KEYER/DECODE] opens the CW DECODE screen directly instead of the Select screen.
+   The console then shows `* Radio: CW mode, FIL1. Touch MENU, then KEYER/DECODE, ...`.
+2. On the radio, touch MENU › KEYER/DECODE. Decoded text appears on the radio's display.
+   Its ADJ keys set threshold, filter (AUTO follows the strongest signal) and speed.
+
+Notes:
+- The setting is refused while transmitting (`* ERROR: radio setup ignored: transmitting`).
+- `/rtty` does not change the radio's mode back. Set USB-D or LSB-D yourself before sending
+  RTTY.
+- The 0264 change stays after the flowgraph stops. To get the Select screen back, set
+  "CW [KEYER/DECODE] Key" to `Select screen` (this radio's setting before the change).
+- The flowgraph's CW Decoder keeps running as well, so both decoders can be compared.
+  Remove the `cw_decoder` → `console rx_cw` connection to show only the radio's.
+
 ## Text console (gr-webserver)
 
 Text in and out goes through [gr-webserver](https://github.com/duggabe/gr-webserver), a
@@ -158,13 +183,13 @@ ZMQ PUSH Message Sink blocks (same addresses and bind settings).
 
 1. Start gr-webserver in its own terminal: `cd ~/gr-webserver && node index.js`. A browser
    tab opens.
-2. Start the flowgraph. The console shows `Mode RTTY. Type /help for commands.`
+2. Start the flowgraph. The console shows `Mode CW. Type /help for commands.`, and the radio is set up for its CW DECODE screen as `/cw` does
 3. Type a line and press Enter. It goes out in the current mode.
 
 | Console input | Action |
 |---|---|
 | text | send as RTTY or CW (current mode) |
-| `/rtty`, `/cw` | switch mode (starts in the block's `mode` parameter, default RTTY) |
+| `/rtty`, `/cw` | switch mode (starts in the block's `mode` parameter, default CW); `/cw` also sets the radio up for its CW DECODE screen |
 | `/stop` or an empty line | abort the CW or RTTY transmission in progress |
 | `/help` | list the commands |
 

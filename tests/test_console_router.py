@@ -52,17 +52,22 @@ class TestConsoleRouter(unittest.TestCase):
         self.screen.setsockopt(zmq.RCVTIMEO, 2000)
 
         self.tb = gr.top_block()
-        self.router = mod.blk()
+        self.router = mod.blk(**self.router_args())
         src = zeromq.sub_msg_source(f"tcp://127.0.0.1:{in_port}", 100, False)
         sink = zeromq.pub_msg_sink(f"tcp://127.0.0.1:{out_port}", 100, True)
         self.cw, self.rtty = blocks.message_debug(), blocks.message_debug()
+        self.radio = blocks.message_debug()
         self.tb.msg_connect(src, "out", self.router, "in")
         self.tb.msg_connect(self.router, "display", sink, "in")
         self.tb.msg_connect(self.router, "cw", self.cw, "store")
         self.tb.msg_connect(self.router, "rtty", self.rtty, "store")
+        self.tb.msg_connect(self.router, "radio", self.radio, "store")
         self.tb.start()
         time.sleep(0.5)                                     # let ZMQ connect (slow joiner)
         self.lines = []
+
+    def router_args(self):
+        return dict(mode="RTTY")
 
     def tearDown(self):
         self.tb.stop()
@@ -101,6 +106,7 @@ class TestConsoleRouter(unittest.TestCase):
         self.type("/bogus")
         self.assertEqual(self.stored(self.rtty), ["CQ CQ DE N0CALL", "", "73"])
         self.assertEqual(self.stored(self.cw), ["TEST", ""])
+        self.assertEqual(self.stored(self.radio), ["CW DECODE"])     # /cw only, not /rtty
         time.sleep(0.6)
         lines = self.screen_lines()
         for want in ("* Mode RTTY. Type /help for commands.", "* Mode CW", "* Stop", "* Mode RTTY", "* Unknown command /bogus. Type /help."):
@@ -127,6 +133,23 @@ class TestConsoleRouter(unittest.TestCase):
         self.assertEqual(lines, ["* TX", "* RX", "* ERROR: no reply", "* TX (CW keyer)", "* RX",
                                  "* RTTY: skipped unsupported characters '&lt;!>'",
                                  "CQ CQ DE N0CALL"])
+
+
+class TestConsoleRouterDefault(TestConsoleRouter):
+    """Default mode CW: the greeting also sets up the radio's CW decoder."""
+
+    def router_args(self):
+        return {}
+
+    def test_routing_and_commands(self):
+        time.sleep(1.0)                                     # greeting timer
+        self.assertIn("* Mode CW. Type /help for commands.", self.screen_lines())
+        self.assertEqual(self.stored(self.radio), ["CW DECODE"])
+        self.type("CQ TEST")
+        self.assertEqual(self.stored(self.cw), ["CQ TEST"])
+
+    test_received_text_follows_mode = None
+    test_status_display = None
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ class TxController:
         on_state: Optional[Callable[[str], None]] = None,
         on_mute: Optional[Callable[[bool], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
+        on_info: Optional[Callable[[str], None]] = None,
     ) -> None:
         self.civ = civ
         self.lead = lead
@@ -49,6 +50,7 @@ class TxController:
         self.on_state = on_state or (lambda s: None)
         self.on_mute = on_mute or (lambda m: None)
         self.on_error = on_error or (lambda e: None)
+        self.on_info = on_info or (lambda t: None)
         self._wpm = cw_wpm          # 0 = use the radio's current keyer speed
         self._wpm_est = cw_wpm or 20  # speed used to estimate CW duration
         self._usbmod_want: Optional[float] = usb_mod_level if usb_mod_level >= 0 else None
@@ -85,6 +87,11 @@ class TxController:
         dragged) collapse into one radio write of the latest value."""
         self._usbmod_want = float(pct)
         self._q.put(("usbmod",))
+
+    def setup_cw_decode(self) -> None:
+        """Prepare the radio's own CW decoder: CW mode (current filter kept) and the
+        MENU screen's [KEYER/DECODE] key set to open CW DECODE. Ignored while transmitting."""
+        self._q.put(("cwdecode",))
 
     def close(self, timeout: float = 2.0) -> None:
         """Unkey and stop the worker. Safe to call more than once."""
@@ -217,6 +224,22 @@ class TxController:
         except CivError as e:
             self.on_error(str(e))
             self._safe_unkey()
+
+    def _on_cwdecode(self) -> None:
+        if self._state != RX:
+            self.on_error("radio setup ignored: transmitting")
+            return
+        try:
+            mode, filt = self.civ.get_mode()
+            if mode not in ("CW", "CW-R"):
+                mode = "CW"
+                self.civ.set_mode(mode, filt=filt)
+            self.civ.set_keyer_decode_key("DECODE")
+        except CivError as e:
+            self.on_error(f"CW decode setup failed: {e}")
+            return
+        self.on_info(f"Radio: {mode} mode, FIL{filt}. "
+                     "Touch MENU, then KEYER/DECODE, for the radio's CW DECODE screen.")
 
     def _on_timer(self) -> None:
         s = self._state

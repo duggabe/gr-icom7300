@@ -6,10 +6,13 @@ Message inputs:
          True = transmit, False = receive.
   cw   - text for the radio's CW keyer (string, or pair from QT GUI Message Edit Box).
          Empty text aborts sending. Radio must be in CW mode with break-in on.
+  radio - radio setup command (symbol). "CW DECODE": switch to CW mode (keeping the
+         filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.
 Message outputs:
   status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds
            it reads "<state> | ERROR: ...", then returns to the plain state.
   mute   - bool for a Mute block's set_mute port: True except while TX audio is wanted.
+  info   - symbol: notices about radio setup (connect to the Console Router's info input).
 
 Needs icom_civ.py and civ_controller.py next to the .grc file (or set lib_dir).
 The serial port is opened in start(), not when GRC loads the block.
@@ -70,8 +73,11 @@ class blk(gr.basic_block):
         self.set_msg_handler(pmt.intern('ptt'), self._handle_ptt)
         self.message_port_register_in(pmt.intern('cw'))
         self.set_msg_handler(pmt.intern('cw'), self._handle_cw)
+        self.message_port_register_in(pmt.intern('radio'))
+        self.set_msg_handler(pmt.intern('radio'), self._handle_radio)
         self.message_port_register_out(pmt.intern('status'))
         self.message_port_register_out(pmt.intern('mute'))
+        self.message_port_register_out(pmt.intern('info'))
 
     # GRC turns a property with a setter into a run-time callback (e.g. a QT GUI Range)
     @property
@@ -110,7 +116,7 @@ class blk(gr.basic_block):
         self._ctl = civ_controller.TxController(
             self._civ, lead=cfg['lead'], tail=cfg['tail'], tx_timeout=cfg['tx_timeout'],
             cw_wpm=self._wpm, usb_mod_level=self._usbmod, on_state=self._on_state,
-            on_mute=self._publish_mute, on_error=self._on_error)
+            on_mute=self._publish_mute, on_error=self._on_error, on_info=self._publish_info)
         self._ctl.start()
         return True
 
@@ -135,6 +141,15 @@ class blk(gr.basic_block):
         if self._ctl is not None:
             v = _value(msg)
             self._ctl.cw(v if isinstance(v, str) else str(v))
+
+    def _handle_radio(self, msg):
+        if self._ctl is None:
+            return
+        cmd = " ".join(str(_value(msg)).upper().split())
+        if cmd == "CW DECODE":
+            self._ctl.setup_cw_decode()
+        else:
+            self._on_error(f"unknown radio command {cmd!r}")
 
     # status text: current state, plus the latest error for error_hold_s seconds
     def _on_state(self, state):
@@ -164,3 +179,6 @@ class blk(gr.basic_block):
 
     def _publish_mute(self, mute):
         self.message_port_pub(pmt.intern('mute'), pmt.from_bool(bool(mute)))
+
+    def _publish_info(self, text):
+        self.message_port_pub(pmt.intern('info'), pmt.intern(text))

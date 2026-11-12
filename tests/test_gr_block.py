@@ -76,6 +76,8 @@ class TestGrBlock(unittest.TestCase):
         mute = blocks.message_debug()
         tb.msg_connect(blk, "status", status, "store")
         tb.msg_connect(blk, "mute", mute, "store")
+        info = blocks.message_debug()
+        tb.msg_connect(blk, "info", info, "store")
         tb.start()
         try:
             def statuses():
@@ -117,6 +119,13 @@ class TestGrBlock(unittest.TestCase):
             self.assertTrue(wait(lambda: statuses()[-1] == "TX"), statuses())   # cleared after hold
             blk._post(pmt.intern("ptt"), pmt.cons(pmt.intern("value"), pmt.from_bool(False)))
             self.assertTrue(wait(lambda: statuses()[-1] == "RX"), statuses())
+
+            # radio setup for the radio's own CW decoder (sent by the Console Router on /cw)
+            blk._post(pmt.intern("radio"), pmt.intern("CW DECODE"))
+            self.assertTrue(wait(lambda: info.num_messages() >= 1))
+            self.assertIn("CW mode", pmt.symbol_to_string(info.get_message(0)))
+            self.assertEqual(radio.radio.mode[0], 0x03)
+            self.assertEqual(radio.radio.menu.get(b"\x02\x64"), b"\x02")
 
             mutes = [pmt.to_python(mute.get_message(i)) for i in range(mute.num_messages())]
             self.assertEqual(mutes[:3], [True, False, True])

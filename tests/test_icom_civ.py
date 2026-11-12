@@ -27,6 +27,7 @@ class FakeRadio:
         self.cw = []
         self.menu = {}
         self.settings = []
+        self.mode = (0x01, 0x01)       # USB, FIL1
         self._out = queue.Queue()
         self._parser = civ.FrameParser()
 
@@ -60,6 +61,10 @@ class FakeRadio:
                 return reply(p + self.menu.get(item, b"\x01\x28"))
             self.menu[item] = p[4:]
             return reply(bytes([civ.ACK]))
+        if p == bytes([civ.CMD_READ_MODE]):
+            return reply(bytes([civ.CMD_READ_MODE, *self.mode]))
+        if p[0] == civ.CMD_SET_MODE and len(p) == 3:
+            self.mode = (p[1], p[2])
         if p[0] == civ.CMD_SEND_CW and 2 <= len(p) <= 31:
             self.cw.append(p[1:])
             return reply(bytes([civ.ACK]))

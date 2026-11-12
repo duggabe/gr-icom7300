@@ -187,7 +187,7 @@ def build():
               address="'tcp://127.0.0.1:50251'", timeout=100, bind="False",
               comment="Text typed in gr-webserver (v2.1, PUB/SUB). For v1.0.16 use "
                       "a ZMQ PULL Message Source instead."),
-        block("console", "epy_block", (420, 900), _source_code=router_src, mode="'RTTY'"),
+        block("console", "epy_block", (420, 900), _source_code=router_src, mode="'CW'"),
         block("console_out", "zeromq_pub_msg_sink", (900, 900),
               address="'tcp://127.0.0.1:50252'", timeout=100, bind="True",
               comment="Lines shown in gr-webserver. For v1.0.16 use a ZMQ PUSH "
@@ -228,6 +228,8 @@ def build():
             ["ptt", "state", "icom_ptt", "ptt"],
             ["console_in", "out", "console", "in"],
             ["console", "cw", "icom_ptt", "cw"],
+            ["console", "radio", "icom_ptt", "radio"],
+            ["icom_ptt", "info", "console", "info"],
             ["console", "rtty", "rtty_mod", "text"],
             ["console", "display", "console_out", "in"],
             ["icom_ptt", "status", "console", "status"],

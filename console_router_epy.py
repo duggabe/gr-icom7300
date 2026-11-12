@@ -6,12 +6,13 @@ Connect:
   ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False) -> in
   display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)
   cw   -> Icom CI-V PTT block's cw input
+  radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the radio's CW decoder)
   rtty -> RTTY AFSK Mod's text input
-  Icom CI-V PTT status -> status,  RTTY AFSK Mod info -> info
+  Icom CI-V PTT status -> status,  Icom CI-V PTT info and RTTY AFSK Mod info -> info
   RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw
 
 Each line typed in the console is sent in the current mode. Commands:
-  /cw  /rtty   switch mode
+  /cw  /rtty   switch mode; CW is the default (/cw, and starting in CW, also puts the radio in CW mode, ready for its CW DECODE screen)
   /stop        abort the current CW or RTTY transmission (an empty line does the same)
   /help        list the commands
 The console shows received text for the current mode (RTTY in RTTY mode, CW in CW mode)
@@ -41,27 +42,30 @@ def _text(msg):
 class blk(gr.basic_block):
     """Routes gr-webserver console lines to CW or RTTY and shows radio status.
 
-    mode: 'RTTY' or 'CW' at start; change it from the console with /rtty or /cw.
+    mode: 'CW' or 'RTTY' at start (CW also sets the radio up, as /cw does); change it from
+          the console with /cw or /rtty.
     """
 
-    def __init__(self, mode='RTTY'):
+    def __init__(self, mode='CW'):
         gr.basic_block.__init__(self, name='Console Router', in_sig=None, out_sig=None)
         m = str(mode).upper()
         self._mode = m if m in MODES else MODES[0]
         self._state = None
         self._error = None
         self._greet = threading.Timer(0, lambda: None)
+        self._switched = False          # /cw or /rtty typed since start
         for port, handler in (("in", self._handle_in), ("status", self._handle_status),
                               ("info", self._handle_info), ("rx_rtty", self._handle_rx_rtty),
                               ("rx_cw", self._handle_rx_cw)):
             self.message_port_register_in(pmt.intern(port))
             self.set_msg_handler(pmt.intern(port), handler)
-        for port in ("display", "cw", "rtty"):
+        for port in ("display", "cw", "rtty", "radio"):
             self.message_port_register_out(pmt.intern(port))
 
     def start(self):
         # delayed: ZMQ PUB drops messages until the console's SUB socket has connected
-        self._greet = threading.Timer(1.0, self._note, (f"Mode {self._mode}. Type /help for commands.",))
+        self._switched = False
+        self._greet = threading.Timer(1.0, self._greeting, (self._mode,))
         self._greet.daemon = True
         self._greet.start()
         return True
@@ -69,6 +73,15 @@ class blk(gr.basic_block):
     def stop(self):
         self._greet.cancel()
         return True
+
+    def _greeting(self, mode):
+        self._note(f"Mode {mode}. Type /help for commands.")
+        if not self._switched:
+            self._setup_radio()
+
+    def _setup_radio(self):
+        if self._mode == "CW":
+            self.message_port_pub(pmt.intern("radio"), pmt.intern("CW DECODE"))
 
     def _show(self, line):
         # gr-webserver shows one line per message and renders it as HTML
@@ -86,7 +99,9 @@ class blk(gr.basic_block):
         cmd = line.lower()
         if cmd in ("/rtty", "/cw"):
             self._mode = cmd[1:].upper()
+            self._switched = True
             self._note(f"Mode {self._mode}")
+            self._setup_radio()
         elif cmd in ("", "/stop"):
             for m in MODES:
                 self._send(m, "")              # empty text = abort, in both blocks
