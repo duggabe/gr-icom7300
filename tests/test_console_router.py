@@ -106,7 +106,7 @@ class TestConsoleRouter(unittest.TestCase):
         self.type("/bogus")
         self.assertEqual(self.stored(self.rtty), ["CQ CQ DE N0CALL", "", "73"])
         self.assertEqual(self.stored(self.cw), ["TEST", ""])
-        self.assertEqual(self.stored(self.radio), ["CW DECODE"])     # /cw only, not /rtty
+        self.assertEqual(self.stored(self.radio), ["CW DECODE", "LSB-D"])   # /cw, /RTTY
         time.sleep(0.6)
         lines = self.screen_lines()
         for want in ("* Mode RTTY. Type /help for commands.", "* Mode CW", "* Stop", "* Mode RTTY", "* Unknown command /bogus. Type /help."):

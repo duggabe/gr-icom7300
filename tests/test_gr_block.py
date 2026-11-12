@@ -126,6 +126,10 @@ class TestGrBlock(unittest.TestCase):
             self.assertIn("CW mode", pmt.symbol_to_string(info.get_message(0)))
             self.assertEqual(radio.radio.mode[0], 0x03)
             self.assertEqual(radio.radio.menu.get(b"\x02\x64"), b"\x02")
+            blk._post(pmt.intern("radio"), pmt.intern("LSB-D"))
+            self.assertTrue(wait(lambda: info.num_messages() >= 2))
+            self.assertIn("LSB-D mode", pmt.symbol_to_string(info.get_message(1)))
+            self.assertEqual(radio.radio.mode[0], 0x00)
 
             mutes = [pmt.to_python(mute.get_message(i)) for i in range(mute.num_messages())]
             self.assertEqual(mutes[:3], [True, False, True])

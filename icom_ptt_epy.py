@@ -8,6 +8,7 @@ Message inputs:
          Empty text aborts sending. Radio must be in CW mode with break-in on.
   radio - radio setup command (symbol). "CW DECODE": switch to CW mode (keeping the
          filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.
+         "LSB-D" / "USB-D": switch to that data mode (keeping the filter), for AFSK RTTY.
 Message outputs:
   status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds
            it reads "<state> | ERROR: ...", then returns to the plain state.
@@ -148,6 +149,8 @@ class blk(gr.basic_block):
         cmd = " ".join(str(_value(msg)).upper().split())
         if cmd == "CW DECODE":
             self._ctl.setup_cw_decode()
+        elif cmd in ("LSB-D", "USB-D"):
+            self._ctl.setup_data_mode(cmd[:3])
         else:
             self._on_error(f"unknown radio command {cmd!r}")
 

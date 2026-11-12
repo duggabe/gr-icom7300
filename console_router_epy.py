@@ -6,14 +6,17 @@ Connect:
   ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False) -> in
   display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)
   cw   -> Icom CI-V PTT block's cw input
-  radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the radio's CW decoder)
+  radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the radio's CW decoder,
+           /rtty puts the radio in LSB-D)
   rtty -> RTTY AFSK Mod's text input
   Icom CI-V PTT status -> status,  Icom CI-V PTT info and RTTY AFSK Mod info -> info
   RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw (optional: the demo reads CW on
   the radio's CW DECODE screen and leaves rx_cw unconnected)
 
 Each line typed in the console is sent in the current mode. Commands:
-  /cw  /rtty   switch mode; CW is the default (/cw, and starting in CW, also puts the radio in CW mode, ready for its CW DECODE screen)
+  /cw  /rtty   switch mode; CW is the default. /rtty (and starting in RTTY) also puts the
+               radio in LSB-D; /cw (and starting in CW) puts it in CW mode, ready for its
+               CW DECODE screen.
   /stop        abort the current CW or RTTY transmission (an empty line does the same)
   /help        list the commands
 If rx_rtty / rx_cw are connected, the console shows received text for the current mode as
@@ -27,7 +30,7 @@ from gnuradio import gr
 
 MODES = ("RTTY", "CW")
 HELP = ["Type a line and press Enter to send it in the current mode.",
-        "/rtty or /cw: switch mode.  /stop or empty line: abort.  /help: this list."]
+        "/rtty or /cw: switch mode (and the radio to LSB-D or CW).  /stop or empty line: abort.  /help: this list."]
 QUIET_STATES = ("LEAD", "TAIL")     # brief PTT sequencing states, not worth showing
 
 
@@ -43,8 +46,8 @@ def _text(msg):
 class blk(gr.basic_block):
     """Routes gr-webserver console lines to CW or RTTY and shows radio status.
 
-    mode: 'CW' or 'RTTY' at start (CW also sets the radio up, as /cw does); change it from
-          the console with /cw or /rtty.
+    mode: 'CW' or 'RTTY' at start (the radio is set up as /cw or /rtty would); change it
+          from the console with /cw or /rtty.
     """
 
     def __init__(self, mode='CW'):
@@ -81,8 +84,8 @@ class blk(gr.basic_block):
             self._setup_radio()
 
     def _setup_radio(self):
-        if self._mode == "CW":
-            self.message_port_pub(pmt.intern("radio"), pmt.intern("CW DECODE"))
+        cmd = {"CW": "CW DECODE", "RTTY": "LSB-D"}[self._mode]
+        self.message_port_pub(pmt.intern("radio"), pmt.intern(cmd))
 
     def _show(self, line):
         # gr-webserver shows one line per message and renders it as HTML

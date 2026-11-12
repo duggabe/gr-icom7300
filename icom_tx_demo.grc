@@ -258,24 +258,26 @@ blocks:
       \ v2.1: ZMQ PUB/SUB).\n\nConnect:\n  ZMQ SUB Message Source (tcp://127.0.0.1:50251, bind False)\
       \ -> in\n  display -> ZMQ PUB Message Sink (tcp://127.0.0.1:50252, bind True)\n  cw   -> Icom CI-V\
       \ PTT block's cw input\n  radio -> Icom CI-V PTT block's radio input (optional: /cw sets up the\
-      \ radio's CW decoder)\n  rtty -> RTTY AFSK Mod's text input\n  Icom CI-V PTT status -> status, \
-      \ Icom CI-V PTT info and RTTY AFSK Mod info -> info\n  RTTY Demod text -> rx_rtty,  CW Decoder text\
-      \ -> rx_cw (optional: the demo reads CW on\n  the radio's CW DECODE screen and leaves rx_cw unconnected)\n\
-      \nEach line typed in the console is sent in the current mode. Commands:\n  /cw  /rtty   switch mode;\
-      \ CW is the default (/cw, and starting in CW, also puts the radio in CW mode, ready for its CW DECODE\
-      \ screen)\n  /stop        abort the current CW or RTTY transmission (an empty line does the same)\n\
-      \  /help        list the commands\nIf rx_rtty / rx_cw are connected, the console shows received\
-      \ text for the current mode as\nit is. It always shows radio state changes (TX / RX), errors and\
-      \ notices with a \"* \" in front.\n\"\"\"\n\nimport threading\n\nimport pmt\nfrom gnuradio import\
-      \ gr\n\nMODES = (\"RTTY\", \"CW\")\nHELP = [\"Type a line and press Enter to send it in the current\
-      \ mode.\",\n        \"/rtty or /cw: switch mode.  /stop or empty line: abort.  /help: this list.\"\
-      ]\nQUIET_STATES = (\"LEAD\", \"TAIL\")     # brief PTT sequencing states, not worth showing\n\n\n\
-      def _text(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:\n    \
-      \    v = v[1]\n    if isinstance(v, (bytes, bytearray)):\n        v = bytes(v).decode(\"utf-8\"\
-      , \"replace\")\n    return v if isinstance(v, str) else str(v)\n\n\nclass blk(gr.basic_block):\n\
-      \    \"\"\"Routes gr-webserver console lines to CW or RTTY and shows radio status.\n\n    mode:\
-      \ 'CW' or 'RTTY' at start (CW also sets the radio up, as /cw does); change it from\n          the\
-      \ console with /cw or /rtty.\n    \"\"\"\n\n    def __init__(self, mode='CW'):\n        gr.basic_block.__init__(self,\
+      \ radio's CW decoder,\n           /rtty puts the radio in LSB-D)\n  rtty -> RTTY AFSK Mod's text\
+      \ input\n  Icom CI-V PTT status -> status,  Icom CI-V PTT info and RTTY AFSK Mod info -> info\n\
+      \  RTTY Demod text -> rx_rtty,  CW Decoder text -> rx_cw (optional: the demo reads CW on\n  the\
+      \ radio's CW DECODE screen and leaves rx_cw unconnected)\n\nEach line typed in the console is sent\
+      \ in the current mode. Commands:\n  /cw  /rtty   switch mode; CW is the default. /rtty (and starting\
+      \ in RTTY) also puts the\n               radio in LSB-D; /cw (and starting in CW) puts it in CW\
+      \ mode, ready for its\n               CW DECODE screen.\n  /stop        abort the current CW or\
+      \ RTTY transmission (an empty line does the same)\n  /help        list the commands\nIf rx_rtty\
+      \ / rx_cw are connected, the console shows received text for the current mode as\nit is. It always\
+      \ shows radio state changes (TX / RX), errors and notices with a \"* \" in front.\n\"\"\"\n\nimport\
+      \ threading\n\nimport pmt\nfrom gnuradio import gr\n\nMODES = (\"RTTY\", \"CW\")\nHELP = [\"Type\
+      \ a line and press Enter to send it in the current mode.\",\n        \"/rtty or /cw: switch mode\
+      \ (and the radio to LSB-D or CW).  /stop or empty line: abort.  /help: this list.\"]\nQUIET_STATES\
+      \ = (\"LEAD\", \"TAIL\")     # brief PTT sequencing states, not worth showing\n\n\ndef _text(msg):\n\
+      \    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:\n        v = v[1]\n  \
+      \  if isinstance(v, (bytes, bytearray)):\n        v = bytes(v).decode(\"utf-8\", \"replace\")\n\
+      \    return v if isinstance(v, str) else str(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Routes\
+      \ gr-webserver console lines to CW or RTTY and shows radio status.\n\n    mode: 'CW' or 'RTTY' at\
+      \ start (the radio is set up as /cw or /rtty would); change it\n          from the console with\
+      \ /cw or /rtty.\n    \"\"\"\n\n    def __init__(self, mode='CW'):\n        gr.basic_block.__init__(self,\
       \ name='Console Router', in_sig=None, out_sig=None)\n        m = str(mode).upper()\n        self._mode\
       \ = m if m in MODES else MODES[0]\n        self._state = None\n        self._error = None\n    \
       \    self._greet = threading.Timer(0, lambda: None)\n        self._switched = False          # /cw\
@@ -289,12 +291,12 @@ blocks:
       \ (self._mode,))\n        self._greet.daemon = True\n        self._greet.start()\n        return\
       \ True\n\n    def stop(self):\n        self._greet.cancel()\n        return True\n\n    def _greeting(self,\
       \ mode):\n        self._note(f\"Mode {mode}. Type /help for commands.\")\n        if not self._switched:\n\
-      \            self._setup_radio()\n\n    def _setup_radio(self):\n        if self._mode == \"CW\"\
-      :\n            self.message_port_pub(pmt.intern(\"radio\"), pmt.intern(\"CW DECODE\"))\n\n    def\
-      \ _show(self, line):\n        # gr-webserver shows one line per message and renders it as HTML\n\
-      \        line = line.replace(\"\\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\").replace(\"\
-      <\", \"&lt;\")\n        self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\n   \
-      \ def _note(self, line):\n        self._show(\"* \" + line)\n\n    def _send(self, mode, text):\n\
+      \            self._setup_radio()\n\n    def _setup_radio(self):\n        cmd = {\"CW\": \"CW DECODE\"\
+      , \"RTTY\": \"LSB-D\"}[self._mode]\n        self.message_port_pub(pmt.intern(\"radio\"), pmt.intern(cmd))\n\
+      \n    def _show(self, line):\n        # gr-webserver shows one line per message and renders it as\
+      \ HTML\n        line = line.replace(\"\\r\", \" \").replace(\"\\n\", \" \").replace(\"&\", \"&amp;\"\
+      ).replace(\"<\", \"&lt;\")\n        self.message_port_pub(pmt.intern(\"display\"), pmt.intern(line))\n\
+      \n    def _note(self, line):\n        self._show(\"* \" + line)\n\n    def _send(self, mode, text):\n\
       \        self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))\n\n    def _handle_in(self,\
       \ msg):\n        line = _text(msg).strip()\n        cmd = line.lower()\n        if cmd in (\"/rtty\"\
       , \"/cw\"):\n            self._mode = cmd[1:].upper()\n            self._switched = True\n     \
@@ -318,12 +320,12 @@ blocks:
     minoutbuf: '0'
     mode: '''CW'''
   states:
-    _io_cache: '(''Console Router'', ''blk'', [(''mode'', "''CW''")], [(''in'', ''message'', 1), (''rx_rtty'',
-      ''message'', 1), (''rx_cw'', ''message'', 1), (''info'', ''message'', 1), (''status'', ''message'',
-      1)], [(''radio'', ''message'', 1), (''rtty'', ''message'', 1), (''cw'', ''message'', 1), (''display'',
-      ''message'', 1)], "Routes gr-webserver console lines to CW or RTTY and shows radio status.\n\nmode:
-      ''CW'' or ''RTTY'' at start (CW also sets the radio up, as /cw does); change it from\n      the
-      console with /cw or /rtty.\n", [])'
+    _io_cache: '(''Console Router'', ''blk'', [(''mode'', "''CW''")], [(''rx_rtty'', ''message'', 1),
+      (''in'', ''message'', 1), (''rx_cw'', ''message'', 1), (''info'', ''message'', 1), (''status'',
+      ''message'', 1)], [(''radio'', ''message'', 1), (''rtty'', ''message'', 1), (''cw'', ''message'',
+      1), (''display'', ''message'', 1)], "Routes gr-webserver console lines to CW or RTTY and shows radio
+      status.\n\nmode: ''CW'' or ''RTTY'' at start (the radio is set up as /cw or /rtty would); change
+      it\n      from the console with /cw or /rtty.\n", [])'
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -378,7 +380,8 @@ blocks:
       \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
       \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\n \
       \ radio - radio setup command (symbol). \"CW DECODE\": switch to CW mode (keeping the\n        \
-      \ filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.\nMessage outputs:\n\
+      \ filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.\n         \"LSB-D\"\
+      \ / \"USB-D\": switch to that data mode (keeping the filter), for AFSK RTTY.\nMessage outputs:\n\
       \  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n       \
       \    it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool for a\
       \ Mute block's set_mute port: True except while TX audio is wanted.\n  info   - symbol: notices\
@@ -432,8 +435,9 @@ blocks:
       \ _handle_cw(self, msg):\n        if self._ctl is not None:\n            v = _value(msg)\n     \
       \       self._ctl.cw(v if isinstance(v, str) else str(v))\n\n    def _handle_radio(self, msg):\n\
       \        if self._ctl is None:\n            return\n        cmd = \" \".join(str(_value(msg)).upper().split())\n\
-      \        if cmd == \"CW DECODE\":\n            self._ctl.setup_cw_decode()\n        else:\n    \
-      \        self._on_error(f\"unknown radio command {cmd!r}\")\n\n    # status text: current state,\
+      \        if cmd == \"CW DECODE\":\n            self._ctl.setup_cw_decode()\n        elif cmd in\
+      \ (\"LSB-D\", \"USB-D\"):\n            self._ctl.setup_data_mode(cmd[:3])\n        else:\n     \
+      \       self._on_error(f\"unknown radio command {cmd!r}\")\n\n    # status text: current state,\
       \ plus the latest error for error_hold_s seconds\n    def _on_state(self, state):\n        with\
       \ self._status_lock:\n            self._state = state\n            self._publish_status()\n\n  \
       \  def _on_error(self, text):\n        with self._status_lock:\n            self._error = text\n\

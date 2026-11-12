@@ -97,8 +97,12 @@ sets the radio to 50%. Tick **Test tone**, press PTT and adjust it until ALC bar
 Block **RTTY AFSK Mod**: 45.45 baud, 170 Hz shift, 1.5 stop bits, Baudot (characters common
 to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are skipped).
 
-- Put the radio in **LSB-D** (`icom_civ.py ... mode LSB --data`): audio mark 2125 / space
-  2295 Hz then gives mark on the higher RF frequency, the normal sense. For USB-D, swap them.
+- The radio must be in **LSB-D**. `/rtty` in the console (or starting the flowgraph in RTTY
+  mode) sets it: LSB with DATA on, keeping the filter number, and the console shows
+  `* Radio: LSB-D mode, FIL1.` (Without the flowgraph: `icom_civ.py ... mode LSB --data`.)
+  Audio mark 2125 / space 2295 Hz then gives mark on the higher RF frequency, the normal
+  sense. For USB-D, swap them. To receive a station listed by its mark frequency, set the
+  dial 2.125 kHz above it.
 - Type in the gr-webserver console (mode RTTY) and press Enter. The modulator requests PTT, waits for the PTT
   block to report TX, sends mark idle + LTRS, the text on its own line, a mark tail, then
   releases PTT after `release_delay_s` (covers about 0.4 s of audio buffering).
@@ -176,8 +180,7 @@ the screen is opened by hand:
 
 Notes:
 - The setting is refused while transmitting (`* ERROR: radio setup ignored: transmitting`).
-- `/rtty` does not change the radio's mode back. Set USB-D or LSB-D yourself before sending
-  RTTY.
+- `/rtty` switches the radio back to LSB-D for RTTY (see "RTTY").
 - The 0264 change stays after the flowgraph stops. To get the Select screen back, set
   "CW [KEYER/DECODE] Key" to `Select screen` (this radio's setting before the change).
 - Verified 2026-11-12: starting the flowgraph sets the radio to CW, and MENU › KEYER/DECODE
@@ -199,7 +202,7 @@ display lines back.
 | Console input | Action |
 |---|---|
 | text | send as RTTY or CW (current mode) |
-| `/rtty`, `/cw` | switch mode (starts in the block's `mode` parameter, default CW); `/cw` also sets the radio up for its CW DECODE screen |
+| `/rtty`, `/cw` | switch mode (starts in the block's `mode` parameter, default CW); `/cw` also sets the radio up for its CW DECODE screen, `/rtty` puts it in LSB-D; both are refused while transmitting |
 | `/stop` or an empty line | abort the CW or RTTY transmission in progress |
 | `/help` | list the commands |
 

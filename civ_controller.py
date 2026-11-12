@@ -93,6 +93,11 @@ class TxController:
         MENU screen's [KEYER/DECODE] key set to open CW DECODE. Ignored while transmitting."""
         self._q.put(("cwdecode",))
 
+    def setup_data_mode(self, sideband: str = "LSB") -> None:
+        """Switch to LSB-D or USB-D (DATA on, current filter number kept), for AFSK such as
+        RTTY. Ignored while transmitting."""
+        self._q.put(("datamode", sideband.upper()))
+
     def close(self, timeout: float = 2.0) -> None:
         """Unkey and stop the worker. Safe to call more than once."""
         if self._thread is not None:
@@ -240,6 +245,18 @@ class TxController:
             return
         self.on_info(f"Radio: {mode} mode, FIL{filt}. "
                      "Touch MENU, then KEYER/DECODE, for the radio's CW DECODE screen.")
+
+    def _on_datamode(self, sideband: str) -> None:
+        if self._state != RX:
+            self.on_error("radio setup ignored: transmitting")
+            return
+        try:
+            _mode, filt = self.civ.get_mode()
+            self.civ.set_mode(sideband, data=True, filt=filt)
+        except (CivError, ValueError) as e:
+            self.on_error(f"{sideband}-D setup failed: {e}")
+            return
+        self.on_info(f"Radio: {sideband}-D mode, FIL{filt}.")
 
     def _on_timer(self) -> None:
         s = self._state

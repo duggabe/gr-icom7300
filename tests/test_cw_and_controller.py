@@ -199,6 +199,17 @@ class TestController(unittest.TestCase):
         self.assertFalse(any(w[4:5] == bytes([civ.CMD_SET_MODE]) for w in r.writes))
         self.assertIn("CW-R mode", rec.infos[0])
 
+    def test_lsb_data_setup(self):
+        r = FakeRadio()
+        r.mode = (0x03, 0x02)                     # CW, FIL2
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_data_mode("LSB")
+        self.wait_info(rec)
+        self.assertEqual(rec.errors, [])
+        self.assertEqual(r.mode, (0x00, 0x02))    # LSB, filter kept
+        self.assertEqual(r.settings[-1], b"\x1a\x06\x01\x02")   # DATA on, FIL2
+        self.assertIn("LSB-D mode, FIL2", rec.infos[0])
+
     def test_cw_decode_setup_refused_while_tx(self):
         self.r, self.port, self.c, rec = make(lead=0.0)
         self.c.ptt(True)
