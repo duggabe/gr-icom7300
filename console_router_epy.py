@@ -20,7 +20,9 @@ Each line typed in the console is sent in the current mode. Commands:
   /stop        abort the current CW or RTTY transmission (an empty line does the same)
   /help        list the commands
 If rx_rtty / rx_cw are connected, the console shows received text for the current mode as
-it is. It always shows radio state changes (TX / RX), errors and notices with a "* " in front.
+it is. It always shows errors and notices with a "* " in front. Radio state changes (TX / RX) go
+to gr-webserver's /trace page instead: they are sent as "TRACE: TX" etc., and gr-webserver
+puts any line starting with "TRACE: " on /trace rather than the console.
 """
 
 import threading
@@ -32,6 +34,7 @@ MODES = ("RTTY", "CW")
 HELP = ["Type a line and press Enter to send it in the current mode.",
         "/rtty or /cw: switch mode (and the radio to LSB-D or CW).  /stop or empty line: abort.  /help: this list."]
 QUIET_STATES = ("LEAD", "TAIL")     # brief PTT sequencing states, not worth showing
+TRACE = "TRACE: "                   # gr-webserver shows these lines on /trace, not the console
 
 
 def _text(msg):
@@ -95,6 +98,9 @@ class blk(gr.basic_block):
     def _note(self, line):
         self._show("* " + line)
 
+    def _trace(self, line):
+        self._show(TRACE + line)
+
     def _send(self, mode, text):
         self.message_port_pub(pmt.intern(mode.lower()), pmt.intern(text))
 
@@ -126,7 +132,7 @@ class blk(gr.basic_block):
             self._note(f"ERROR: {err}")
         self._error = err or None
         if state != self._state and state not in QUIET_STATES:
-            self._note("TX (CW keyer)" if state == "CW" else state)
+            self._trace("TX (CW keyer)" if state == "CW" else state)
             self._state = state
 
     def _handle_info(self, msg):

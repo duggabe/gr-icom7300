@@ -208,8 +208,10 @@ display lines back.
 
 Received RTTY lines appear as they are in mode RTTY (`/rtty`). CW is read on the radio's CW
 DECODE screen (with a `--with-cw-rx` flowgraph, the CW Decoder's lines appear in mode CW).
-The router's own lines start with `* `: `* TX`, `* TX (CW keyer)`, `* RX`, errors from the
-PTT block, radio setup notices, and RTTY notices such as skipped characters. A received line
+The router's own lines start with `* `: errors from the PTT block, radio setup notices, and
+RTTY notices such as skipped characters. Radio state changes (`TX`, `TX (CW keyer)`, `RX`)
+are sent as `TRACE: TX` etc.; gr-webserver shows lines starting with `TRACE: ` on its /trace
+page (localhost:50250/trace) with a timestamp, not on the console. A received line
 appears when it ends, reaches 64 characters, or after 2 s without new characters. gr-webserver keeps
 the last 20 lines. Its one-byte length field
 limits a line to 255 ASCII characters.

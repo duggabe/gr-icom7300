@@ -130,7 +130,8 @@ class TestConsoleRouter(unittest.TestCase):
         self.post("rx_rtty", "CQ CQ DE N0CALL")
         self.post("rx_cw", "NOT SHOWN IN RTTY MODE")
         lines = [l for l in self.screen_lines() if not l.startswith("* Mode ")]   # greeting
-        self.assertEqual(lines, ["* TX", "* RX", "* ERROR: no reply", "* TX (CW keyer)", "* RX",
+        self.assertEqual(lines, ["TRACE: TX", "TRACE: RX", "* ERROR: no reply",
+                                 "TRACE: TX (CW keyer)", "TRACE: RX",
                                  "* RTTY: skipped unsupported characters '&lt;!>'",
                                  "CQ CQ DE N0CALL"])
 
