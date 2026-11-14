@@ -6,8 +6,8 @@ Message inputs:
          True = transmit, False = receive.
   cw   - text for the radio's CW keyer (string, or pair from QT GUI Message Edit Box).
          Empty text aborts sending. Radio must be in CW mode with break-in on.
-  radio - radio setup command (symbol). "CW DECODE": switch to CW mode (keeping the
-         filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.
+  radio - radio setup command (symbol). "CW DECODE": switch to CW mode (CW-R is kept)
+         with FIL3, the narrowest filter, and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.
          "LSB-D" / "USB-D": switch to that data mode (keeping the filter), for AFSK RTTY.
 Message outputs:
   status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds

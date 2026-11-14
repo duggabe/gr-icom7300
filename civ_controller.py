@@ -88,10 +88,13 @@ class TxController:
         self._usbmod_want = float(pct)
         self._q.put(("usbmod",))
 
-    def setup_cw_decode(self) -> None:
-        """Prepare the radio's own CW decoder: CW mode (current filter kept) and the
-        MENU screen's [KEYER/DECODE] key set to open CW DECODE. Ignored while transmitting."""
-        self._q.put(("cwdecode",))
+    def setup_cw_decode(self, filt: int = 3) -> None:
+        """Prepare the radio's own CW decoder: CW mode (CW-R is kept) with filter `filt`
+        (default FIL3, the narrowest, against adjacent stations) and the MENU screen's
+        [KEYER/DECODE] key set to open CW DECODE. Ignored while transmitting."""
+        if filt not in (1, 2, 3):
+            raise ValueError("filter must be 1, 2 or 3")
+        self._q.put(("cwdecode", filt))
 
     def setup_data_mode(self, sideband: str = "LSB") -> None:
         """Switch to LSB-D or USB-D (DATA on, current filter number kept), for AFSK such as
@@ -230,14 +233,15 @@ class TxController:
             self.on_error(str(e))
             self._safe_unkey()
 
-    def _on_cwdecode(self) -> None:
+    def _on_cwdecode(self, want_filt: int) -> None:
         if self._state != RX:
             self.on_error("radio setup ignored: transmitting")
             return
         try:
-            mode, filt = self.civ.get_mode()
-            if mode not in ("CW", "CW-R"):
-                mode = "CW"
+            old_mode, old_filt = self.civ.get_mode()
+            mode = old_mode if old_mode in ("CW", "CW-R") else "CW"
+            filt = want_filt
+            if (mode, filt) != (old_mode, old_filt):
                 self.civ.set_mode(mode, filt=filt)
             self.civ.set_keyer_decode_key("DECODE")
         except CivError as e:

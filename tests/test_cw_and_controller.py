@@ -185,19 +185,38 @@ class TestController(unittest.TestCase):
         self.c.setup_cw_decode()
         self.wait_info(rec)
         self.assertEqual(rec.errors, [])
-        self.assertEqual(r.mode, (0x03, 0x02))    # CW, filter kept
+        self.assertEqual(r.mode, (0x03, 0x03))    # CW, FIL3 by default
         self.assertEqual(r.menu[b"\x02\x64"], b"\x02")
-        self.assertIn("CW mode, FIL2", rec.infos[0])
+        self.assertIn("CW mode, FIL3", rec.infos[0])
 
-    def test_cw_decode_setup_already_cw(self):
+    def test_cw_decode_setup_cw_r_filter(self):
         r = FakeRadio()
-        r.mode = (0x07, 0x01)                     # CW-R stays CW-R
+        r.mode = (0x07, 0x01)                     # CW-R stays CW-R, FIL1 -> FIL3
         self.r, self.port, self.c, rec = make(r)
         self.c.setup_cw_decode()
         self.wait_info(rec)
-        self.assertEqual(r.mode, (0x07, 0x01))
+        self.assertEqual(r.mode, (0x07, 0x03))
+        self.assertIn("CW-R mode, FIL3", rec.infos[0])
+
+    def test_cw_decode_setup_already_set(self):
+        r = FakeRadio()
+        r.mode = (0x03, 0x03)                     # already CW FIL3: no mode command
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_cw_decode()
+        self.wait_info(rec)
+        self.assertEqual(r.mode, (0x03, 0x03))
         self.assertFalse(any(w[4:5] == bytes([civ.CMD_SET_MODE]) for w in r.writes))
-        self.assertIn("CW-R mode", rec.infos[0])
+        self.assertIn("CW mode, FIL3", rec.infos[0])
+
+    def test_cw_decode_setup_other_filter(self):
+        r = FakeRadio()
+        r.mode = (0x01, 0x03)                     # USB FIL3; ask for FIL2
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_cw_decode(filt=2)
+        self.wait_info(rec)
+        self.assertEqual(r.mode, (0x03, 0x02))
+        with self.assertRaises(ValueError):
+            self.c.setup_cw_decode(filt=4)
 
     def test_lsb_data_setup(self):
         r = FakeRadio()

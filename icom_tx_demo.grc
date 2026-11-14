@@ -411,20 +411,20 @@ blocks:
       \ bool/int, or a (name . value) pair as sent by QT GUI Toggle Button.\n         True = transmit,\
       \ False = receive.\n  cw   - text for the radio's CW keyer (string, or pair from QT GUI Message\
       \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\n \
-      \ radio - radio setup command (symbol). \"CW DECODE\": switch to CW mode (keeping the\n        \
-      \ filter) and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.\n         \"LSB-D\"\
-      \ / \"USB-D\": switch to that data mode (keeping the filter), for AFSK RTTY.\nMessage outputs:\n\
-      \  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n       \
-      \    it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool for a\
-      \ Mute block's set_mute port: True except while TX audio is wanted.\n  info   - symbol: notices\
-      \ about radio setup (connect to the Console Router's info input).\n\nNeeds icom_civ.py and civ_controller.py\
-      \ next to the .grc file (or set lib_dir).\nThe serial port is opened in start(), not when GRC loads\
-      \ the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\n\n\
-      def _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:     #\
-      \ (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v,\
-      \ str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n  \
-      \  return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail\
-      \ timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
+      \ radio - radio setup command (symbol). \"CW DECODE\": switch to CW mode (CW-R is kept)\n      \
+      \   with FIL3, the narrowest filter, and set MENU > [KEYER/DECODE] to open the radio's CW DECODE\
+      \ screen.\n         \"LSB-D\" / \"USB-D\": switch to that data mode (keeping the filter), for AFSK\
+      \ RTTY.\nMessage outputs:\n  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s\
+      \ seconds\n           it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute\
+      \   - bool for a Mute block's set_mute port: True except while TX audio is wanted.\n  info   - symbol:\
+      \ notices about radio setup (connect to the Console Router's info input).\n\nNeeds icom_civ.py and\
+      \ civ_controller.py next to the .grc file (or set lib_dir).\nThe serial port is opened in start(),\
+      \ not when GRC loads the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio\
+      \ import gr\n\n\ndef _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v)\
+      \ == 2:     # (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if\
+      \ isinstance(v, str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"\
+      pressed\")\n    return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control:\
+      \ PTT with lead/tail timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
       \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
       \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
       \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\
@@ -501,7 +501,7 @@ blocks:
     _io_cache: '(''Icom CI-V PTT'', ''blk'', [(''port'', "''/dev/ttyACM0''"), (''baud'', ''115200''),
       (''radio_addr'', ''182''), (''lead_ms'', ''50''), (''tail_ms'', ''50''), (''tx_timeout_s'', ''180''),
       (''cw_wpm'', ''0''), (''usb_mod_level'', ''-1''), (''error_hold_s'', ''5''), (''lib_dir'', "''''")],
-      [(''radio'', ''message'', 1), (''cw'', ''message'', 1), (''ptt'', ''message'', 1)], [(''info'',
+      [(''cw'', ''message'', 1), (''ptt'', ''message'', 1), (''radio'', ''message'', 1)], [(''info'',
       ''message'', 1), (''mute'', ''message'', 1), (''status'', ''message'', 1)], ''Icom CI-V T/R control:
       PTT with lead/tail timing, TX watchdog, CW keyer.\n\nport: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\nradio_addr:
       CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\nlead_ms: delay after confirmed TX before audio

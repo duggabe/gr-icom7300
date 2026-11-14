@@ -170,11 +170,12 @@ the screen is opened by hand:
 
 1. Start the flowgraph (CW is the default mode) or type `/cw`. The Console Router sends `CW DECODE` to the Icom CI-V PTT block (`radio`
    input), which:
-   - reads the mode; if it isn't CW or CW-R, switches to CW and keeps the filter (FIL1-3);
+   - sets CW mode (CW-R is kept) with FIL3, the narrowest filter, which best suppresses
+     adjacent stations (change it on the radio's FIL key if needed);
    - sets "CW [KEYER/DECODE] Key" in the MENU screen's own settings (MENU SET; CI-V item
      0264) to `DECODE`, so touching
      [KEYER/DECODE] opens the CW DECODE screen directly instead of the Select screen.
-   The console then shows `* Radio: CW mode, FIL1. Touch MENU, then KEYER/DECODE, ...`.
+   The console then shows `* Radio: CW mode, FIL3. Touch MENU, then KEYER/DECODE, ...`.
 2. On the radio, touch MENU › KEYER/DECODE. Decoded text appears on the radio's display.
    Its ADJ keys set threshold, filter (AUTO follows the strongest signal) and speed.
 
