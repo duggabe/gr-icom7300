@@ -236,6 +236,10 @@ Sidetone: SET > CW-KEY Set, items `0218` (level) and `0219` (limit to AF gain).
 RTTY: the modulator keys the radio, sends, and unkeys automatically (verified on the radio).
 gr-webserver console (2026-11-11): RTTY and CW typed in the browser console were sent, and
 the radio unkeyed afterwards.
+2026-11-13: RTTY receive decoded live contest stations to clear text on the console, and
+the RTTY RX preview box scrolled with them; `/rtty` switched the radio to LSB-D; `/stop`
+aborted an RTTY transmission (into a dummy load, 2 W); TX/RX state changes appeared on
+gr-webserver's /trace page.
 Not yet verified: decoding the transmitted RTTY with a separate receiver.
 
 ## Changing the flowgraph
