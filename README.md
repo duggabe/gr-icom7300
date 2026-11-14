@@ -239,8 +239,8 @@ the radio unkeyed afterwards.
 2026-11-13: RTTY receive decoded live contest stations to clear text on the console, and
 the RTTY RX preview box scrolled with them; `/rtty` switched the radio to LSB-D; `/stop`
 aborted an RTTY transmission (into a dummy load, 2 W); TX/RX state changes appeared on
-gr-webserver's /trace page.
-Not yet verified: decoding the transmitted RTTY with a separate receiver.
+gr-webserver's /trace page. A separate receiver (an RTL-SDR RTTY flowgraph on another
+computer) decoded our transmitted RTTY correctly over the air (into a dummy load, 2 W).
 
 ## Changing the flowgraph
 
