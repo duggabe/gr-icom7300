@@ -8,7 +8,8 @@ Message inputs:
          Empty text aborts sending. Radio must be in CW mode with break-in on.
   radio - radio setup command (symbol). "CW DECODE": switch to CW mode (CW-R is kept)
          with FIL3, the narrowest filter, and set MENU > [KEYER/DECODE] to open the radio's CW DECODE screen.
-         "LSB-D" / "USB-D": switch to that data mode (keeping the filter), for AFSK RTTY.
+         "LSB-D" / "USB-D": switch to that data mode with FIL2 and the passband shifted up
+         (Twin PBT) so 2125/2295 Hz AFSK RTTY sits inside it.
 Message outputs:
   status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds
            it reads "<state> | ERROR: ...", then returns to the plain state.

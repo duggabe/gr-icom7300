@@ -28,6 +28,7 @@ class FakeRadio:
         self.menu = {}
         self.settings = []
         self.mode = (0x01, 0x01)       # USB, FIL1
+        self.pbt = {0x07: 128, 0x08: 128}
         self._out = queue.Queue()
         self._parser = civ.FrameParser()
 
@@ -65,6 +66,11 @@ class FakeRadio:
             return reply(bytes([civ.CMD_READ_MODE, *self.mode]))
         if p[0] == civ.CMD_SET_MODE and len(p) == 3:
             self.mode = (p[1], p[2])
+        if p[0] == civ.CMD_LEVEL and len(p) >= 2 and p[1] in self.pbt:
+            if len(p) == 2:
+                return reply(p + civ.bcd4(self.pbt[p[1]]))
+            self.pbt[p[1]] = civ.from_bcd(p[2:4])
+            return reply(bytes([civ.ACK]))
         if p[0] == civ.CMD_SEND_CW and 2 <= len(p) <= 31:
             self.cw.append(p[1:])
             return reply(bytes([civ.ACK]))
@@ -126,6 +132,16 @@ class TestPort(unittest.TestCase):
         r = FakeRadio(addr=0x94)
         with port(r) as c:
             self.assertEqual(c.read_id(), 0x94)
+
+    def test_twin_pbt(self):
+        r = FakeRadio()
+        with port(r) as c:
+            self.assertEqual(c.get_twin_pbt(), (128, 128))
+            c.set_twin_pbt(250, 255)
+            self.assertEqual(c.get_twin_pbt(), (250, 255))
+            self.assertIn(bytes.fromhex("FEFEB6E014080255FD"), r.writes)
+            with self.assertRaises(ValueError):
+                c.set_twin_pbt(256, 128)
 
     def test_nak(self):
         with port(FakeRadio(nak=True)) as c:

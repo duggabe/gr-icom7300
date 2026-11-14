@@ -413,18 +413,19 @@ blocks:
       \ Edit Box).\n         Empty text aborts sending. Radio must be in CW mode with break-in on.\n \
       \ radio - radio setup command (symbol). \"CW DECODE\": switch to CW mode (CW-R is kept)\n      \
       \   with FIL3, the narrowest filter, and set MENU > [KEYER/DECODE] to open the radio's CW DECODE\
-      \ screen.\n         \"LSB-D\" / \"USB-D\": switch to that data mode (keeping the filter), for AFSK\
-      \ RTTY.\nMessage outputs:\n  status - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s\
-      \ seconds\n           it reads \"<state> | ERROR: ...\", then returns to the plain state.\n  mute\
-      \   - bool for a Mute block's set_mute port: True except while TX audio is wanted.\n  info   - symbol:\
-      \ notices about radio setup (connect to the Console Router's info input).\n\nNeeds icom_civ.py and\
-      \ civ_controller.py next to the .grc file (or set lib_dir).\nThe serial port is opened in start(),\
-      \ not when GRC loads the block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio\
-      \ import gr\n\n\ndef _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v)\
-      \ == 2:     # (name . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if\
-      \ isinstance(v, str):\n        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"\
-      pressed\")\n    return bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control:\
-      \ PTT with lead/tail timing, TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
+      \ screen.\n         \"LSB-D\" / \"USB-D\": switch to that data mode with FIL2 and the passband shifted\
+      \ up\n         (Twin PBT) so 2125/2295 Hz AFSK RTTY sits inside it.\nMessage outputs:\n  status\
+      \ - symbol: RX, LEAD, TX, TAIL or CW. After an error, for error_hold_s seconds\n           it reads\
+      \ \"<state> | ERROR: ...\", then returns to the plain state.\n  mute   - bool for a Mute block's\
+      \ set_mute port: True except while TX audio is wanted.\n  info   - symbol: notices about radio setup\
+      \ (connect to the Console Router's info input).\n\nNeeds icom_civ.py and civ_controller.py next\
+      \ to the .grc file (or set lib_dir).\nThe serial port is opened in start(), not when GRC loads the\
+      \ block.\n\"\"\"\n\nimport sys\nimport threading\n\nimport pmt\nfrom gnuradio import gr\n\n\ndef\
+      \ _value(msg):\n    v = pmt.to_python(msg)\n    if isinstance(v, tuple) and len(v) == 2:     # (name\
+      \ . value) pair\n        v = v[1]\n    return v\n\n\ndef _to_bool(v):\n    if isinstance(v, str):\n\
+      \        return v.strip().lower() in (\"1\", \"true\", \"on\", \"tx\", \"pressed\")\n    return\
+      \ bool(v)\n\n\nclass blk(gr.basic_block):\n    \"\"\"Icom CI-V T/R control: PTT with lead/tail timing,\
+      \ TX watchdog, CW keyer.\n\n    port: serial device, e.g. /dev/serial/by-id/usb-Icom_Inc._IC-7300MK2_...-if00\n\
       \    radio_addr: CI-V address (IC-7300MK2 default 0xB6, IC-7300 0x94)\n    lead_ms: delay after\
       \ confirmed TX before audio is un-muted\n    tail_ms: carrier hold after PTT release\n    tx_timeout_s:\
       \ watchdog, unkeys after this long in TX\n    cw_wpm: keyer speed set on start and when changed\

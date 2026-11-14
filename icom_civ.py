@@ -45,6 +45,8 @@ CMD_READ_MODE = 0x04        # reply: mode, filter (1-3)
 CMD_SET_MODE = 0x06         # data: mode, filter (1-3)
 CMD_LEVEL = 0x14
 SUB_KEY_SPEED = 0x0C        # 0000-0255 BCD -> 6-48 WPM
+SUB_PBT_INNER = 0x07        # Twin PBT, 0000-0255 BCD, 0128 = centre
+SUB_PBT_OUTER = 0x08
 CMD_FUNC = 0x16
 SUB_BREAK_IN = 0x47         # 00 off, 01 semi, 02 full
 CMD_EXT = 0x1A
@@ -409,6 +411,19 @@ class CivPort:
 
     def set_cw_speed(self, wpm: int) -> None:
         self.transact(bytes([CMD_LEVEL, SUB_KEY_SPEED]) + wpm_to_civ(wpm))
+
+    def set_twin_pbt(self, inner: int, outer: int) -> None:
+        """Set Twin PBT for the current filter, 0-255 each (128 = centre). Moving both the
+        same way shifts the passband; the radio remembers it per mode and filter."""
+        for sub, v in ((SUB_PBT_INNER, inner), (SUB_PBT_OUTER, outer)):
+            if not 0 <= v <= 255:
+                raise ValueError("PBT must be 0-255")
+            self.transact(bytes([CMD_LEVEL, sub]) + bcd4(v))
+
+    def get_twin_pbt(self) -> tuple[int, int]:
+        """Read Twin PBT (inner, outer) for the current filter, 0-255 (128 = centre)."""
+        return tuple(from_bcd(self.transact(bytes([CMD_LEVEL, sub]), expect=bytes([CMD_LEVEL, sub])).payload[2:4])
+                     for sub in (SUB_PBT_INNER, SUB_PBT_OUTER))
 
     def set_break_in(self, mode: str) -> None:
         self.transact(bytes([CMD_FUNC, SUB_BREAK_IN, BREAK_IN[mode.upper()]]))

@@ -225,9 +225,30 @@ class TestController(unittest.TestCase):
         self.c.setup_data_mode("LSB")
         self.wait_info(rec)
         self.assertEqual(rec.errors, [])
-        self.assertEqual(r.mode, (0x00, 0x02))    # LSB, filter kept
+        self.assertEqual(r.mode, (0x00, 0x02))    # LSB, FIL2
         self.assertEqual(r.settings[-1], b"\x1a\x06\x01\x02")   # DATA on, FIL2
-        self.assertIn("LSB-D mode, FIL2", rec.infos[0])
+        self.assertEqual(r.pbt, {0x07: 255, 0x08: 255})          # passband shifted up
+        self.assertIn("LSB-D mode, FIL2, passband shifted up", rec.infos[0])
+
+    def test_lsb_data_setup_from_fil3(self):
+        r = FakeRadio()
+        r.mode = (0x03, 0x03)                     # CW FIL3 (what /cw sets) -> LSB-D FIL2
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_data_mode("LSB")
+        self.wait_info(rec)
+        self.assertEqual(r.mode, (0x00, 0x02))
+
+    def test_data_setup_options(self):
+        r = FakeRadio()
+        self.r, self.port, self.c, rec = make(r)
+        self.c.setup_data_mode("USB", filt=1, pbt=None)
+        self.wait_info(rec)
+        self.assertEqual(r.mode, (0x01, 0x01))
+        self.assertEqual(r.pbt, {0x07: 128, 0x08: 128})          # left alone
+        self.assertIn("USB-D mode, FIL1.", rec.infos[0])
+        for bad in (dict(filt=0), dict(pbt=256)):
+            with self.assertRaises(ValueError):
+                self.c.setup_data_mode("LSB", **bad)
 
     def test_cw_decode_setup_refused_while_tx(self):
         self.r, self.port, self.c, rec = make(lead=0.0)

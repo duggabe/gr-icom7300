@@ -98,8 +98,17 @@ Block **RTTY AFSK Mod**: 45.45 baud, 170 Hz shift, 1.5 stop bits, Baudot (charac
 to ITA2 and US-TTY: letters, digits, space and `- ? : ( ) . , /`; others are skipped).
 
 - The radio must be in **LSB-D**. `/rtty` in the console (or starting the flowgraph in RTTY
-  mode) sets it: LSB with DATA on, keeping the filter number, and the console shows
-  `* Radio: LSB-D mode, FIL1.` (Without the flowgraph: `icom_civ.py ... mode LSB --data`.)
+  mode) sets it: LSB with DATA on, FIL2, and Twin PBT at the top of its range. The console
+  shows `* Radio: LSB-D mode, FIL2, passband shifted up (Twin PBT).` (Without the
+  flowgraph: `icom_civ.py ... mode LSB --data`, which leaves the filter and PBT alone.)
+- Why FIL2 with the shift: measured on an IC-7300MK2 from the noise in its USB receive
+  audio, the SSB-D filters are FIL1 3.0 kHz, FIL2 1.2 kHz and FIL3 500 Hz, and with PBT
+  centred FIL2 passes about 750-2200 Hz (centre about 1500 Hz), so 2295 Hz is about 20 dB
+  down. PBT at the top of its range (the radio reads back 250) moves it to about
+  1350-2750 Hz: both tones on the flat part, and adjacent stations still kept out. That is
+  as far as it goes, so the centre (about 2030 Hz) is a little below 2210 Hz. The radio keeps
+  the PBT setting per mode and filter, so CW FIL3 is unaffected. Holding TWIN PBT CLR on the
+  radio re-centres it until the next `/rtty`.
   Audio mark 2125 / space 2295 Hz then gives mark on the higher RF frequency, the normal
   sense. For USB-D, swap them. To receive a station listed by its mark frequency, set the
   dial 2.125 kHz above it.

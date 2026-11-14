@@ -96,10 +96,17 @@ class TxController:
             raise ValueError("filter must be 1, 2 or 3")
         self._q.put(("cwdecode", filt))
 
-    def setup_data_mode(self, sideband: str = "LSB") -> None:
-        """Switch to LSB-D or USB-D (DATA on, current filter number kept), for AFSK such as
-        RTTY. Ignored while transmitting."""
-        self._q.put(("datamode", sideband.upper()))
+    def setup_data_mode(self, sideband: str = "LSB", filt: int = 2, pbt: Optional[int] = 255) -> None:
+        """Switch to LSB-D or USB-D (DATA on) with filter `filt`, for AFSK such as RTTY, and
+        set both Twin PBT controls to `pbt` (None leaves them alone). The defaults suit
+        2125/2295 Hz AFSK: SSB-D FIL2 is 1.2 kHz wide and centred near 1500 Hz, so 2295 Hz
+        is cut; PBT at the top of its range (the radio reads back 250) moves it to about
+        1350-2750 Hz, measured on an IC-7300MK2. Ignored while transmitting."""
+        if filt not in (1, 2, 3):
+            raise ValueError("filter must be 1, 2 or 3")
+        if pbt is not None and not 0 <= pbt <= 255:
+            raise ValueError("PBT must be 0-255")
+        self._q.put(("datamode", sideband.upper(), filt, pbt))
 
     def close(self, timeout: float = 2.0) -> None:
         """Unkey and stop the worker. Safe to call more than once."""
@@ -250,17 +257,19 @@ class TxController:
         self.on_info(f"Radio: {mode} mode, FIL{filt}. "
                      "Touch MENU, then KEYER/DECODE, for the radio's CW DECODE screen.")
 
-    def _on_datamode(self, sideband: str) -> None:
+    def _on_datamode(self, sideband: str, filt: int, pbt: Optional[int]) -> None:
         if self._state != RX:
             self.on_error("radio setup ignored: transmitting")
             return
         try:
-            _mode, filt = self.civ.get_mode()
             self.civ.set_mode(sideband, data=True, filt=filt)
+            if pbt is not None:
+                self.civ.set_twin_pbt(pbt, pbt)
         except (CivError, ValueError) as e:
             self.on_error(f"{sideband}-D setup failed: {e}")
             return
-        self.on_info(f"Radio: {sideband}-D mode, FIL{filt}.")
+        self.on_info(f"Radio: {sideband}-D mode, FIL{filt}"
+                     + (", passband shifted up (Twin PBT)." if pbt is not None and pbt > 128 else "."))
 
     def _on_timer(self) -> None:
         s = self._state
