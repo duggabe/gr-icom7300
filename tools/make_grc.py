@@ -256,7 +256,10 @@ def build(with_cw_rx=False):
             "parameters": {"id": "icom_tx_demo", "title": "Icom IC-7300 TX demo",
                            "generate_options": "qt_gui", "output_language": "python",
                            "run": "True", "run_options": "prompt", "catch_exceptions": "True",
-                           "window_size": "(600,300)", "placement": "(0,0)"},
+                           "window_size": "(600,300)", "placement": "(0,0)",
+                           # GRC's canvas fails on a missing (null) author etc.
+                           "author": "", "copyright": "", "description": "",
+                           "hier_block_src_path": ".:"},
             "states": {"coordinate": [16, 12], "rotation": 0, "state": "enabled"},
         },
         "blocks": blocks + rx_blocks + (cw_rx_blocks if with_cw_rx else []),
